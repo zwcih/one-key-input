@@ -1,0 +1,135 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag name for a manual release (e.g. v0.1.0-rc1)'
+        required: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    env:
+      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/.cache/vcpkg
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Resolve release tag
+        id: tag
+        shell: pwsh
+        run: |
+          $tag = if ($env:GITHUB_REF -like 'refs/tags/*') {
+              $env:GITHUB_REF -replace '^refs/tags/',''
+          } else {
+              '${{ github.event.inputs.tag }}'
+          }
+          if (-not $tag) { throw 'no tag resolved' }
+          $version = $tag -replace '^v',''
+          echo "tag=$tag"         | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          echo "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "tag=$tag  version=$version"
+
+      # ---------- Core (C++) ----------
+
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - uses: lukka/get-cmake@latest
+
+      - name: Cache vcpkg installed packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}/.cache/vcpkg
+            ${{ github.workspace }}/build/release/vcpkg_installed
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json', 'CMakePresets.json') }}
+          restore-keys: |
+            vcpkg-${{ runner.os }}-
+
+      - name: Set up vcpkg
+        shell: pwsh
+        run: |
+          mkdir -Force "$env:GITHUB_WORKSPACE\.cache\vcpkg" | Out-Null
+          git clone https://github.com/microsoft/vcpkg.git "$env:GITHUB_WORKSPACE\vcpkg"
+          & "$env:GITHUB_WORKSPACE\vcpkg\bootstrap-vcpkg.bat" -disableMetrics
+          echo "VCPKG_ROOT=$env:GITHUB_WORKSPACE\vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Restore NuGet packages (Azure Speech SDK)
+        shell: pwsh
+        run: |
+          mkdir -Force nuget\packages | Out-Null
+          & scripts\tools\nuget.exe restore nuget\packages.config `
+              -PackagesDirectory nuget\packages -NonInteractive
+
+      - name: Configure + build Core (Release)
+        shell: pwsh
+        run: |
+          cmake --preset=release
+          cmake --build build\release
+
+      # ---------- Settings (Tauri) ----------
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: settings/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo (Tauri build)
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: settings/src-tauri
+
+      - name: Build settings app
+        shell: pwsh
+        working-directory: settings
+        run: |
+          npm ci
+          npm run tauri build
+
+      # ---------- Package portable zip ----------
+
+      - name: Stage portable bundle
+        shell: pwsh
+        run: |
+          $dist = "dist\OneKeyInput"
+          New-Item -Force -ItemType Directory $dist | Out-Null
+          Copy-Item build\release\bin\onekey-core.exe          $dist
+          Copy-Item build\release\bin\Microsoft.CognitiveServices.Speech.*.dll $dist
+          Copy-Item settings\src-tauri\target\release\onekey-settings.exe $dist
+          Copy-Item config.example.json                        $dist
+          Copy-Item dist-readme.txt                            "$dist\README.txt" -ErrorAction SilentlyContinue
+          if (-not (Test-Path "$dist\README.txt")) {
+              # Fallback: synthesize from main README if a release-specific blurb isn't present
+              "See https://github.com/${{ github.repository }} for usage." | Out-File "$dist\README.txt"
+          }
+          $zip = "dist\OneKeyInput-${{ steps.tag.outputs.version }}-portable.zip"
+          Compress-Archive -Path "$dist\*" -DestinationPath $zip -Force
+          Get-Item $zip | Select-Object Length, FullName
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OneKeyInput-portable
+          path: dist/OneKeyInput-*.zip
+          if-no-files-found: error
+
+      # ---------- Publish GitHub Release ----------
+
+      - name: Create / update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: One-Key Input ${{ steps.tag.outputs.tag }}
+          generate_release_notes: true
+          files: dist/OneKeyInput-*.zip

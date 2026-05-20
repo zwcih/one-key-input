@@ -1,0 +1,20 @@
+name: 💡 Feature request
+description: Suggest an idea or improvement.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What's the underlying problem?
+      description: What are you trying to do that the current product makes hard?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Suggested solution (optional)
+      description: If you have an idea for how it could work, tell us.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you've tried

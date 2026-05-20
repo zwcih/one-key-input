@@ -1,0 +1,56 @@
+name: 🐛 Bug report
+description: Something doesn't work the way you expect.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug! Logs are gold — please
+        attach the relevant section from `logs/` (tray menu → "Open Log
+        Folder") whenever you can.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: From the zip filename, e.g. `OneKeyInput-0.1.0-portable.zip`
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Windows version
+      placeholder: Windows 11 23H2
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Steps to reproduce + what you expected.
+      placeholder: |
+        1. Held F9 in Notepad
+        2. Spoke "hello world"
+        3. Released F9
+        4. Expected: text appeared. Actual: nothing.
+    validations:
+      required: true
+  - type: dropdown
+    id: backends
+    attributes:
+      label: Which backends are you using?
+      multiple: true
+      options:
+        - Azure Speech (streaming)
+        - Azure Speech (REST)
+        - Azure OpenAI
+        - OpenAI
+        - Other / local
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log lines
+      description: Paste the last ~50 lines from `logs/core.log` (REDACT any keys before pasting!)
+      render: text

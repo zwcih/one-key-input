@@ -1,0 +1,45 @@
+# Build
+build/
+out/
+cmake-build-*/
+.vs/
+.vscode/
+*.user
+
+# vcpkg
+vcpkg_installed/
+
+# Logs / runtime
+*.log
+
+# Local secrets (never commit)
+config.json
+config.local.json
+secrets.bin
+
+# NuGet packages (restored by build.bat)
+nuget/packages/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Tauri / Node (settings UI)
+node_modules/
+
+# Local packaging output
+dist/
+vcpkg/
+dist/
+settings/src-tauri/target/
+settings/src-tauri/gen/
+settings/src-tauri/Cargo.lock
+# Generated icon variants we don't reference in tauri.conf.json
+settings/src-tauri/icons/android/
+settings/src-tauri/icons/ios/
+settings/src-tauri/icons/Square*Logo.png
+settings/src-tauri/icons/StoreLogo.png
+# TypeScript build outputs
+settings/*.tsbuildinfo
+settings/vite.config.d.ts
+settings/vite.config.js

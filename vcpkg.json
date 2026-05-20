@@ -1,0 +1,12 @@
+{
+  "name": "onekey-core",
+  "version-string": "0.1.0",
+  "dependencies": [
+    "cpr",
+    "spdlog",
+    "fmt",
+    "nlohmann-json",
+    "wil"
+  ],
+  "builtin-baseline": "432412eecac55981cf608cc12e5b4bd91768ec57"
+}

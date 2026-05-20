@@ -1,0 +1,472 @@
+import { useEffect, useMemo, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { DICTS, Dict, Lang } from "./i18n/dicts";
+import { AppConfig, isFirstRun } from "./config";
+import logoZh from "./assets/logo.png";
+import logoEn from "./assets/logo-en.png";
+
+const LANG_KEY = "onekey.lang";
+
+type Status =
+  | { kind: "idle" }
+  | { kind: "testing" }
+  | { kind: "saving" }
+  | { kind: "ok"; text: string }
+  | { kind: "error"; text: string };
+
+interface TestResult {
+  component: string;
+  ok: boolean;
+  message: string;
+}
+
+export default function App() {
+  const [lang, setLang] = useState<Lang>(() => {
+    const saved = localStorage.getItem(LANG_KEY);
+    if (saved === "zh" || saved === "en") return saved;
+    return navigator.language.toLowerCase().startsWith("zh") ? "zh" : "en";
+  });
+  const t = DICTS[lang];
+
+  const [cfg, setCfg] = useState<AppConfig | null>(null);
+  const [dirty, setDirty] = useState(false);
+  const [status, setStatus] = useState<Status>({ kind: "idle" });
+  const [firstRun, setFirstRun] = useState(false);
+
+  // --- load on mount ---
+  useEffect(() => {
+    invoke<AppConfig>("load_config")
+      .then((c) => {
+        // Backfill keys missing from older configs so the form always has
+        // a value to bind to.
+        if (!c.autostart) c.autostart = { enabled: true };
+        if (!c.sound) c.sound = { enabled: true };
+        setCfg(c);
+        setFirstRun(isFirstRun(c));
+      })
+      .catch((e: unknown) =>
+        setStatus({ kind: "error", text: t.loadFailed + String(e) }),
+      );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(LANG_KEY, lang);
+    document.title = t.appTitle;
+  }, [lang, t.appTitle]);
+
+  // --- helpers ---
+  const update = (mutator: (draft: AppConfig) => void) => {
+    if (!cfg) return;
+    const next = structuredClone(cfg);
+    mutator(next);
+    setCfg(next);
+    setDirty(true);
+  };
+
+  const onSave = async () => {
+    if (!cfg) return;
+
+    // Validate credentials against the real upstream services first. If any
+    // probe fails, don't write the file — the user's existing config (if
+    // any) keeps working, and we surface a useful error.
+    setStatus({ kind: "testing" });
+    try {
+      const results = await invoke<TestResult[]>("test_credentials", { cfg });
+      const failed = results.filter((r) => !r.ok);
+      if (failed.length > 0) {
+        const summary = failed
+          .map((r) => `${r.component}: ${r.message}`)
+          .join("; ");
+        setStatus({
+          kind: "error",
+          text: t.testFailed + summary + " — " + t.testFailedHint,
+        });
+        return;
+      }
+    } catch (e) {
+      setStatus({ kind: "error", text: t.testFailed + String(e) });
+      return;
+    }
+
+    setStatus({ kind: "saving" });
+    try {
+      await invoke("save_config", { cfg });
+      setDirty(false);
+      // If we just escaped first-run, offer to start Core.
+      if (firstRun && !isFirstRun(cfg)) {
+        try {
+          await invoke("start_core");
+          setStatus({ kind: "ok", text: t.coreStarted });
+          setFirstRun(false);
+        } catch (e) {
+          setStatus({ kind: "error", text: t.coreStartFailed + String(e) });
+        }
+      } else {
+        setStatus({ kind: "ok", text: t.saved });
+      }
+    } catch (e) {
+      setStatus({ kind: "error", text: t.saveFailed + String(e) });
+    }
+  };
+
+  const onCancel = async () => {
+    // Reload from disk, discarding edits.
+    try {
+      const fresh = await invoke<AppConfig>("load_config");
+      setCfg(fresh);
+      setFirstRun(isFirstRun(fresh));
+      setDirty(false);
+      setStatus({ kind: "idle" });
+    } catch (e) {
+      setStatus({ kind: "error", text: t.loadFailed + String(e) });
+    }
+  };
+
+  const logoSrc = lang === "zh" ? logoZh : logoEn;
+  const introText = firstRun ? t.firstRun : t.intro;
+
+  // --- render ---
+  if (!cfg) {
+    return (
+      <div className="app">
+        <div className="body">
+          {status.kind === "error" ? (
+            <p className="intro" style={{ color: "var(--danger)" }}>
+              {status.text}
+            </p>
+          ) : (
+            <p className="intro">…</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="app">
+      <header className="header">
+        <img className="header-logo" src={logoSrc} alt="One-Key Input" />
+        <div className="header-actions">
+          <button
+            className={`lang-btn ${lang === "zh" ? "active" : ""}`}
+            onClick={() => setLang("zh")}
+          >
+            中文
+          </button>
+          <button
+            className={`lang-btn ${lang === "en" ? "active" : ""}`}
+            onClick={() => setLang("en")}
+          >
+            EN
+          </button>
+        </div>
+      </header>
+
+      <main className="body">
+        <p className={`intro ${firstRun ? "first-run" : ""}`}>{introText}</p>
+
+        {/* Hotkey */}
+        <section className="group">
+          <h2>{t.groupHotkey}</h2>
+          <p className="group-desc">{t.groupHotkeyDesc}</p>
+          <div className="field">
+            <label htmlFor="hk-key">{t.hotkeyKey}</label>
+            <input
+              id="hk-key"
+              type="text"
+              value={cfg.hotkey.key}
+              onChange={(e) => update((d) => (d.hotkey.key = e.target.value))}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="hk-hold">
+              {t.hotkeyHoldMs}
+              <span className="hint">{t.hotkeyHoldHint}</span>
+            </label>
+            <input
+              id="hk-hold"
+              type="number"
+              min={0}
+              value={cfg.hotkey.min_hold_ms ?? 250}
+              onChange={(e) =>
+                update((d) => (d.hotkey.min_hold_ms = Number(e.target.value)))
+              }
+            />
+          </div>
+        </section>
+
+        {/* ASR */}
+        <section className="group">
+          <h2>{t.groupAsr}</h2>
+          <p className="group-desc">{t.groupAsrDesc}</p>
+          <div className="field">
+            <label>{t.asrProvider}</label>
+            <select
+              value={cfg.asr.provider}
+              onChange={(e) =>
+                update((d) => (d.asr.provider = e.target.value))
+              }
+            >
+              <option value="azure-stream">azure-stream</option>
+              <option value="azure-rest">azure-rest</option>
+            </select>
+          </div>
+          <div className="field">
+            <label>{t.asrLanguage}</label>
+            <select
+              value={cfg.asr.language}
+              onChange={(e) =>
+                update((d) => (d.asr.language = e.target.value))
+              }
+            >
+              <option value="zh-CN">zh-CN</option>
+              <option value="en-US">en-US</option>
+              <option value="ja-JP">ja-JP</option>
+            </select>
+          </div>
+          <div className="field">
+            <label>{t.asrAzureKey}</label>
+            <input
+              type="password"
+              value={(cfg.asr.provider_options.key as string) ?? ""}
+              onChange={(e) =>
+                update((d) => (d.asr.provider_options.key = e.target.value))
+              }
+            />
+          </div>
+          <div className="field">
+            <label>{t.asrAzureRegion}</label>
+            <input
+              type="text"
+              value={(cfg.asr.provider_options.region as string) ?? ""}
+              onChange={(e) =>
+                update((d) => (d.asr.provider_options.region = e.target.value))
+              }
+            />
+          </div>
+        </section>
+
+        {/* Polish */}
+        <section className="group">
+          <h2>{t.groupPolish}</h2>
+          <p className="group-desc">{t.groupPolishDesc}</p>
+          <div className="field">
+            <label>{t.polishProvider}</label>
+            <select
+              value={cfg.polish.provider}
+              onChange={(e) =>
+                update((d) => (d.polish.provider = e.target.value))
+              }
+            >
+              <option value="openai-azure">openai-azure</option>
+              <option value="openai">openai</option>
+            </select>
+          </div>
+          <div className="field">
+            <label>{t.polishMode}</label>
+            <div className="radio-row">
+              {(["raw", "tidy", "formal"] as const).map((m) => (
+                <label key={m}>
+                  <input
+                    type="radio"
+                    name="polishMode"
+                    checked={cfg.polish.mode === m}
+                    onChange={() => update((d) => (d.polish.mode = m))}
+                  />
+                  {m === "raw"
+                    ? t.polishModeRaw
+                    : m === "tidy"
+                      ? t.polishModeTidy
+                      : t.polishModeFormal}
+                </label>
+              ))}
+            </div>
+          </div>
+          <div className="field">
+            <label>{t.polishEndpoint}</label>
+            <input
+              type="text"
+              value={(cfg.polish.provider_options.endpoint as string) ?? ""}
+              onChange={(e) =>
+                update(
+                  (d) => (d.polish.provider_options.endpoint = e.target.value),
+                )
+              }
+            />
+          </div>
+          <div className="field">
+            <label>{t.polishKey}</label>
+            <input
+              type="password"
+              value={(cfg.polish.provider_options.key as string) ?? ""}
+              onChange={(e) =>
+                update((d) => (d.polish.provider_options.key = e.target.value))
+              }
+            />
+          </div>
+          <div className="field">
+            <label>{t.polishDeployment}</label>
+            <input
+              type="text"
+              value={(cfg.polish.provider_options.deployment as string) ?? ""}
+              onChange={(e) =>
+                update(
+                  (d) =>
+                    (d.polish.provider_options.deployment = e.target.value),
+                )
+              }
+            />
+          </div>
+          <div className="field">
+            <label>{t.polishApiVersion}</label>
+            <input
+              type="text"
+              value={(cfg.polish.provider_options.api_version as string) ?? ""}
+              onChange={(e) =>
+                update(
+                  (d) =>
+                    (d.polish.provider_options.api_version = e.target.value),
+                )
+              }
+            />
+          </div>
+          <div className="field">
+            <label>{t.polishTemperature}</label>
+            <input
+              type="number"
+              step="0.05"
+              min={0}
+              max={2}
+              value={cfg.polish.temperature ?? 0.2}
+              onChange={(e) =>
+                update((d) => (d.polish.temperature = Number(e.target.value)))
+              }
+            />
+          </div>
+          <div className="field">
+            <label>{t.polishUseContext}</label>
+            <input
+              type="checkbox"
+              checked={cfg.polish.use_context !== false}
+              onChange={(e) =>
+                update((d) => (d.polish.use_context = e.target.checked))
+              }
+            />
+          </div>
+          <p className="group-desc">{t.polishUseContextDesc}</p>
+        </section>
+
+        {/* Inject */}
+        <section className="group">
+          <h2>{t.groupInject}</h2>
+          <p className="group-desc">{t.groupInjectDesc}</p>
+          <div className="field">
+            <label>{t.injectMode}</label>
+            <div className="radio-row">
+              {(
+                [
+                  ["sendinput", t.injectModeSendinput],
+                  ["clipboard", t.injectModeClipboard],
+                  ["auto", t.injectModeAuto],
+                ] as const
+              ).map(([m, label]) => (
+                <label key={m}>
+                  <input
+                    type="radio"
+                    name="injectMode"
+                    checked={cfg.inject.mode === m}
+                    onChange={() => update((d) => (d.inject.mode = m))}
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Sound */}
+        <section className="group">
+          <h2>{t.groupSound}</h2>
+          <p className="group-desc">{t.groupSoundDesc}</p>
+          <div className="field">
+            <label>{t.soundEnabled}</label>
+            <input
+              type="checkbox"
+              checked={!!cfg.sound.enabled}
+              onChange={(e) =>
+                update((d) => (d.sound.enabled = e.target.checked))
+              }
+            />
+          </div>
+        </section>
+
+        {/* Startup */}
+        <section className="group">
+          <h2>{t.groupStartup}</h2>
+          <p className="group-desc">{t.groupStartupDesc}</p>
+          <div className="field">
+            <label>
+              {t.autostartEnabled}
+              <span className="hint">{t.autostartHint}</span>
+            </label>
+            <input
+              type="checkbox"
+              checked={!!cfg.autostart?.enabled}
+              onChange={(e) =>
+                update((d) => (d.autostart.enabled = e.target.checked))
+              }
+            />
+          </div>
+        </section>
+      </main>
+
+      <Footer
+        t={t}
+        status={status}
+        dirty={dirty}
+        firstRun={firstRun}
+        onSave={onSave}
+        onCancel={onCancel}
+      />
+    </div>
+  );
+}
+
+function Footer(props: {
+  t: Dict;
+  status: Status;
+  dirty: boolean;
+  firstRun: boolean;
+  onSave: () => void;
+  onCancel: () => void;
+}) {
+  const { t, status, dirty, firstRun, onSave, onCancel } = props;
+  const statusText = useMemo(() => {
+    if (status.kind === "testing") return t.testing;
+    if (status.kind === "saving") return t.saving;
+    if (status.kind === "ok") return status.text;
+    if (status.kind === "error") return status.text;
+    return dirty ? t.needSave : "";
+  }, [status, dirty, t]);
+  const statusClass =
+    status.kind === "error" ? "error" : status.kind === "ok" ? "ok" : "";
+  const saveLabel = firstRun ? t.startCore : t.save;
+  const busy = status.kind === "saving" || status.kind === "testing";
+
+  return (
+    <div className="footer">
+      <div className={`status ${statusClass}`}>{statusText}</div>
+      <button className="btn" onClick={onCancel} disabled={!dirty || busy}>
+        {t.cancel}
+      </button>
+      <button
+        className="btn btn-primary"
+        onClick={onSave}
+        disabled={busy}
+      >
+        {saveLabel}
+      </button>
+    </div>
+  );
+}

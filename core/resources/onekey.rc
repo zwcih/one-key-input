@@ -1,0 +1,6 @@
+// Win32 resource script: embeds the app icon and sets the icon shown by
+// Explorer for the exe (the first ICON entry wins).
+#include "resource.h"
+
+IDI_ONEKEY      ICON "onekey.ico"
+IDI_ONEKEY_TRAY ICON "onekey-tray.ico"

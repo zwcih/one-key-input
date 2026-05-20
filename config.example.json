@@ -1,0 +1,36 @@
+{
+  "_comment": "Template config — copy to config.json (gitignored) and fill in your keys.",
+  "asr": {
+    "_provider_choices": ["azure-rest", "azure-stream"],
+    "provider": "azure-stream",
+    "language": "zh-CN",
+    "provider_options": {
+      "key": "YOUR_AZURE_SPEECH_KEY",
+      "region": "westus2"
+    }
+  },
+  "polish": {
+    "provider": "openai-azure",
+    "mode": "tidy",
+    "use_context": true,
+    "provider_options": {
+      "endpoint": "https://YOUR-RESOURCE.openai.azure.com/",
+      "key": "YOUR_AZURE_OPENAI_KEY",
+      "deployment": "gpt-4o-mini",
+      "api_version": "2024-08-01-preview"
+    }
+  },
+  "inject": {
+    "mode": "sendinput"
+  },
+  "hotkey": {
+    "key": "f9",
+    "min_hold_ms": 250
+  },
+  "sound": {
+    "enabled": true
+  },
+  "autostart": {
+    "enabled": true
+  }
+}
