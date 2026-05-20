@@ -383,3 +383,112 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
+
+// ---------------------------------------------------------------------------
+// Unit tests
+//
+// Only pure helpers are exercised here. Anything that touches the Tauri
+// runtime (#[tauri::command] handlers, plugin init) is intentionally out of
+// scope — they're integration-tested by running the app.
+// ---------------------------------------------------------------------------
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    // --- merge() ---
+
+    #[test]
+    fn merge_replaces_primitives() {
+        let mut dst = json!({"a": 1, "b": "old"});
+        let src = json!({"b": "new", "c": true});
+        merge(&mut dst, &src);
+        assert_eq!(dst, json!({"a": 1, "b": "new", "c": true}));
+    }
+
+    #[test]
+    fn merge_recurses_into_objects() {
+        let mut dst = json!({
+            "asr": { "provider": "azure-rest", "language": "zh-CN" },
+            "unknown": "keep-me",
+        });
+        let src = json!({
+            "asr": { "language": "en-US" },
+        });
+        merge(&mut dst, &src);
+        // Existing nested key preserved, src key overridden, unknown top-level
+        // key untouched — this is the contract that lets save_config preserve
+        // legacy schema fields.
+        assert_eq!(dst["asr"]["provider"], json!("azure-rest"));
+        assert_eq!(dst["asr"]["language"], json!("en-US"));
+        assert_eq!(dst["unknown"], json!("keep-me"));
+    }
+
+    #[test]
+    fn merge_replaces_arrays_wholesale() {
+        let mut dst = json!({"xs": [1, 2, 3]});
+        let src = json!({"xs": [9]});
+        merge(&mut dst, &src);
+        assert_eq!(dst, json!({"xs": [9]}));
+    }
+
+    #[test]
+    fn merge_overwrites_primitive_with_object() {
+        let mut dst = json!({"v": 1});
+        let src = json!({"v": {"nested": true}});
+        merge(&mut dst, &src);
+        assert_eq!(dst, json!({"v": {"nested": true}}));
+    }
+
+    #[test]
+    fn merge_inserts_new_object_into_null_dst_entry() {
+        // Exercises the `entry().or_insert(Value::Null)` branch.
+        let mut dst = json!({});
+        let src = json!({"polish": {"mode": "tidy"}});
+        merge(&mut dst, &src);
+        assert_eq!(dst["polish"]["mode"], json!("tidy"));
+    }
+
+    // --- locate_config() env override ---
+
+    #[test]
+    fn locate_config_respects_env_override() {
+        // SAFETY: tests run in the same process; `cargo test` runs them on
+        // a thread pool but env vars are process-global. We restrict env
+        // mutation to this single test and restore it after.
+        let prev = std::env::var("ONEKEY_CONFIG").ok();
+        std::env::set_var("ONEKEY_CONFIG", "/tmp/onekey-override.json");
+        let p = locate_config();
+        assert_eq!(p, std::path::PathBuf::from("/tmp/onekey-override.json"));
+        match prev {
+            Some(v) => std::env::set_var("ONEKEY_CONFIG", v),
+            None    => std::env::remove_var("ONEKEY_CONFIG"),
+        }
+    }
+
+    // --- exe_dir() ---
+
+    #[test]
+    fn exe_dir_resolves_to_some_path() {
+        // `current_exe` is always available during `cargo test`.
+        let d = exe_dir();
+        assert!(d.is_some(), "exe_dir should return Some during cargo test");
+        assert!(d.unwrap().is_absolute());
+    }
+
+    // --- TestResult Serialize roundtrip ---
+
+    #[test]
+    fn test_result_serializes_with_expected_field_names() {
+        let r = TestResult {
+            component: "Azure Speech".into(),
+            ok: false,
+            message: "HTTP 401 — key rejected".into(),
+        };
+        let s = serde_json::to_value(&r).unwrap();
+        assert_eq!(s["component"], json!("Azure Speech"));
+        assert_eq!(s["ok"], json!(false));
+        assert!(s["message"].as_str().unwrap().contains("401"));
+    }
+}
+

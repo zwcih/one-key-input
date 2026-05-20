@@ -6,7 +6,8 @@
     "spdlog",
     "fmt",
     "nlohmann-json",
-    "wil"
+    "wil",
+    "gtest"
   ],
   "builtin-baseline": "432412eecac55981cf608cc12e5b4bd91768ec57"
 }
