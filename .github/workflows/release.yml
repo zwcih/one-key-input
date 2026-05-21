@@ -10,6 +10,11 @@ on:
         description: 'Tag name for a manual release (e.g. v0.1.0-rc1)'
         required: true
 
+# softprops/action-gh-release needs contents:write to create the Release.
+# GitHub's default token is read-only on new repos.
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
