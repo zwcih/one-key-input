@@ -49,6 +49,11 @@ jobs:
           cmake --preset=default
           cmake --build build\default
 
+      - name: Run Core unit tests (ctest)
+        shell: pwsh
+        working-directory: build\default
+        run: ctest --output-on-failure -C Debug
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -67,3 +72,13 @@ jobs:
         run: |
           npm ci
           npm run tauri build
+
+      - name: Settings UI unit tests (Vitest)
+        shell: pwsh
+        working-directory: settings
+        run: npm test
+
+      - name: Tauri backend unit tests (cargo test)
+        shell: pwsh
+        working-directory: settings/src-tauri
+        run: cargo test --lib

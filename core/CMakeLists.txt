@@ -22,8 +22,11 @@ set(OK_SPEECH_SDK_LIB
     "${OK_SPEECH_SDK_ROOT}/build/native/x64/Release/Microsoft.CognitiveServices.Speech.core.lib")
 set(OK_SPEECH_SDK_DLL_DIR "${OK_SPEECH_SDK_ROOT}/runtimes/win-x64/native")
 
-set(ONEKEY_CORE_SOURCES
-    src/main.cpp
+# Production sources live in an OBJECT library so the executable AND the
+# test binary can both link them without compiling twice.
+# main.cpp (the wmain entry point) is kept *out* of the object library so
+# tests can supply their own gtest_main without symbol conflicts.
+set(ONEKEY_CORE_OBJ_SOURCES
     src/app/Application.cpp
     src/app/Autostart.cpp
     src/app/ConfigWatcher.cpp
@@ -52,14 +55,13 @@ set(ONEKEY_CORE_SOURCES
     src/ui/TrayIcon.cpp
     src/ui/IconFactory.cpp
     src/ui/OverlayWindow.cpp
-    resources/onekey.rc
 )
 
-add_executable(onekey-core ${ONEKEY_CORE_SOURCES})
+add_library(onekey-core-obj OBJECT ${ONEKEY_CORE_OBJ_SOURCES})
 
-target_include_directories(onekey-core PRIVATE src ${OK_SPEECH_SDK_INCLUDE})
+target_include_directories(onekey-core-obj PUBLIC src ${OK_SPEECH_SDK_INCLUDE})
 
-target_link_libraries(onekey-core PRIVATE
+target_link_libraries(onekey-core-obj PUBLIC
     cpr::cpr
     spdlog::spdlog
     fmt::fmt
@@ -77,6 +79,13 @@ target_link_libraries(onekey-core PRIVATE
     Shell32
     Gdi32
 )
+
+add_executable(onekey-core
+    src/main.cpp
+    resources/onekey.rc
+)
+
+target_link_libraries(onekey-core PRIVATE onekey-core-obj)
 
 set_target_properties(onekey-core PROPERTIES
     OUTPUT_NAME "onekey-core"
@@ -120,3 +129,10 @@ foreach(_dll
         VERBATIM
     )
 endforeach()
+
+# Unit tests — enabled by default; toggle off with -DONEKEY_BUILD_TESTS=OFF.
+option(ONEKEY_BUILD_TESTS "Build onekey-core unit tests" ON)
+if(ONEKEY_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
