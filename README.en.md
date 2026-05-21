@@ -92,6 +92,35 @@ Right-click the tray icon for:
 
 Editing `config.json` by hand works too — Core watches the file and self-restarts on save. (Note: the GUI's pre-save credential validation is bypassed when you edit by hand.)
 
+## Translation mode (F8)
+
+In addition to "hold F9 = record + polish", a second hotkey is available: "hold F8 = record + translate".
+
+Hold **F8**, speak in your native language, release → the target-language version appears at the cursor. **Reuses the same ASR, context capture, and injection pipeline** — only the LLM prompt is swapped for a structured translator prompt.
+
+- **No "direction" concept**: you only configure a **target language**. Translation triggers when the ASR-recognized language differs from the target.
+  - Target = English → Chinese gets translated, English passes through
+  - Target = Chinese → English gets translated, Chinese passes through
+- **Polish style carries over**: Raw / Tidy / Formal applies to translation output too. Raw translates literally; Formal produces business-grade output. Translation has no separate style ladder.
+- **Context still helps**: code symbols, product names, and @handles harvested from the focused window are passed as `[KEEP VERBATIM]` so they're preserved untranslated. The other party's register also influences the reply's tone.
+- **Smart target language (experimental, off by default)**: `translate.smart_target = true` derives the target from the focused window's content. **May be wrong; for consistent behavior leave this off and pin `target_language`.**
+
+The corresponding `config.json` block:
+
+```jsonc
+{
+  "translate": {
+    "enabled": true,
+    "hotkey": "f8",
+    "min_hold_ms": 250,
+    "target_language": "en",   // en/zh/ja/ko/de/fr/es/it/pt/ru ...
+    "smart_target": false
+  }
+}
+```
+
+Or edit it from the Settings UI's "Translation Mode" section.
+
 ## Supported backends
 
 | Kind | Provider | Status |

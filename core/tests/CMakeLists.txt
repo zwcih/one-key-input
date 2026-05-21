@@ -8,6 +8,7 @@ set(ONEKEY_CORE_TEST_SOURCES
     session/EventBusTest.cpp
     asr/AsrFactoryTest.cpp
     polish/PolisherFactoryTest.cpp
+    polish/TranslationPromptTest.cpp
     inject/InjectorStrategyTest.cpp
     hotkey/HotkeyManagerTest.cpp
 )

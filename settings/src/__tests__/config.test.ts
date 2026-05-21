@@ -22,6 +22,10 @@ describe("defaultConfig", () => {
     expect(c.hotkey.min_hold_ms).toBe(250);
     expect(c.sound.enabled).toBe(true);
     expect(c.autostart.enabled).toBe(true);
+    expect(c.translate?.enabled).toBe(true);
+    expect(c.translate?.hotkey).toBe("f8");
+    expect(c.translate?.target_language).toBe("en");
+    expect(c.translate?.smart_target).toBe(false);
   });
 
   it("returns a fresh object each call (no shared mutable state)", () => {
@@ -74,6 +78,31 @@ describe("isFirstRun", () => {
     const c = filled();
     c.polish.provider = "llamacpp";
     c.polish.provider_options.key = "";
+    expect(isFirstRun(c)).toBe(false);
+  });
+});
+
+describe("translate config", () => {
+  it("defaults to F8 / English target / smart_target off", () => {
+    const c = defaultConfig();
+    expect(c.translate).toBeDefined();
+    expect(c.translate!.hotkey).toBe("f8");
+    expect(c.translate!.target_language).toBe("en");
+    expect(c.translate!.smart_target).toBe(false);
+    expect(c.translate!.enabled).toBe(true);
+  });
+
+  it("does NOT affect isFirstRun (translate has no credentials of its own)", () => {
+    // translate borrows the polish provider; first-run is governed solely
+    // by whether the polish key is filled.
+    const c = defaultConfig();
+    c.asr.provider_options.key = "real-azure-key";
+    c.polish.provider_options.key = "real-openai-key";
+    // Even with translate disabled or smart_target on, first-run stays false.
+    c.translate!.enabled = false;
+    expect(isFirstRun(c)).toBe(false);
+    c.translate!.enabled = true;
+    c.translate!.smart_target = true;
     expect(isFirstRun(c)).toBe(false);
   });
 });

@@ -31,6 +31,16 @@ export interface AppConfig {
   hotkey: { key: string; min_hold_ms?: number };
   sound: { enabled: boolean };
   autostart: { enabled: boolean };
+  // Translation mode (F8 by default). Reuses the polish pipeline but swaps
+  // the LLM prompt for a structured translator prompt. Optional in the JSON
+  // for back-compat: older configs predate this section.
+  translate?: {
+    enabled: boolean;
+    hotkey: string;
+    min_hold_ms?: number;
+    target_language: string;   // "en" | "zh" | "ja" | "ko" | "de" | "fr" | "es" | ...
+    smart_target: boolean;     // experimental — derive target from focus
+  };
   [k: string]: unknown;  // preserve unknown top-level keys
 }
 
@@ -59,6 +69,13 @@ export function defaultConfig(): AppConfig {
     hotkey: { key: "f9", min_hold_ms: 250 },
     sound: { enabled: true },
     autostart: { enabled: true },
+    translate: {
+      enabled: true,
+      hotkey: "f8",
+      min_hold_ms: 250,
+      target_language: "en",
+      smart_target: false,
+    },
   };
 }
 

@@ -42,6 +42,21 @@ struct AutostartConfig {
     bool enabled = true;   // launch onekey-core at user login
 };
 
+// Translation mode (F8 by default). Reuses the polish pipeline but swaps
+// the LLM prompt — see polish/TranslationPrompt.h. There is no "direction"
+// concept: ASR output language ≠ target_language => translate; otherwise
+// the polisher passes the transcript through (or polishes per polish.mode).
+struct TranslateConfig {
+    bool        enabled         = true;     // master switch for the second hotkey
+    std::string hotkey          = "f8";     // separate from HotkeyConfig.key
+    int         min_hold_ms     = 250;
+    std::string target_language = "en";     // BCP-47-ish: en | zh | ja | ko | de | fr | es ...
+    // Smart target: derive target_language from the focused window's
+    // detected language. Experimental and intentionally off by default —
+    // the surrounding UI/docs warn that accuracy is best-effort.
+    bool        smart_target    = false;
+};
+
 struct AppConfig {
     AsrConfig       asr;
     PolishConfig    polish;
@@ -49,6 +64,7 @@ struct AppConfig {
     HotkeyConfig    hotkey;
     SoundConfig     sound;
     AutostartConfig autostart;
+    TranslateConfig translate;
 };
 
 // Loads config. Search order:

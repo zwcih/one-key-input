@@ -54,6 +54,12 @@ TEST(Config, LoadAllDefaultsFromEmptyJson) {
     EXPECT_EQ(c.hotkey.min_hold_ms, 250);
     EXPECT_TRUE(c.sound.enabled);
     EXPECT_TRUE(c.autostart.enabled);
+    // Translate defaults: F8, English target, smart_target off.
+    EXPECT_TRUE(c.translate.enabled);
+    EXPECT_EQ(c.translate.hotkey, "f8");
+    EXPECT_EQ(c.translate.min_hold_ms, 250);
+    EXPECT_EQ(c.translate.target_language, "en");
+    EXPECT_FALSE(c.translate.smart_target);
 }
 
 TEST(Config, LoadNewSchema) {
@@ -250,4 +256,35 @@ TEST(Config, LastLoadedPathReflectsRecentLoad) {
     std::error_code ec;
     auto canon = fs::canonical(p, ec);
     if (!ec) EXPECT_EQ(last, canon);
+}
+
+TEST(Config, LoadTranslateExplicitOverridesDefaults) {
+    json j = {
+        {"translate", {
+            {"enabled",         false},
+            {"hotkey",          "f7"},
+            {"min_hold_ms",     400},
+            {"target_language", "ja"},
+            {"smart_target",    true},
+        }},
+    };
+    auto p = WriteTempConfig(j.dump(), "translate");
+    AppConfig c = Load(p);
+    EXPECT_FALSE(c.translate.enabled);
+    EXPECT_EQ(c.translate.hotkey, "f7");
+    EXPECT_EQ(c.translate.min_hold_ms, 400);
+    EXPECT_EQ(c.translate.target_language, "ja");
+    EXPECT_TRUE(c.translate.smart_target);
+}
+
+TEST(Config, LoadTranslatePartialKeepsDefaults) {
+    // Only target_language present — every other field stays default
+    // (hotkey="f8" in particular, so the secondary binding still works).
+    json j = { {"translate", {{"target_language", "ko"}}} };
+    auto p = WriteTempConfig(j.dump(), "translate-partial");
+    AppConfig c = Load(p);
+    EXPECT_EQ(c.translate.target_language, "ko");
+    EXPECT_EQ(c.translate.hotkey, "f8");
+    EXPECT_TRUE(c.translate.enabled);
+    EXPECT_FALSE(c.translate.smart_target);
 }

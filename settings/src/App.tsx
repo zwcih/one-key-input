@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { DICTS, Dict, Lang } from "./i18n/dicts";
-import { AppConfig, isFirstRun } from "./config";
+import { AppConfig, defaultConfig, isFirstRun } from "./config";
 import logoZh from "./assets/logo.png";
 import logoEn from "./assets/logo-en.png";
 
@@ -355,6 +355,89 @@ export default function App() {
             />
           </div>
           <p className="group-desc">{t.polishUseContextDesc}</p>
+        </section>
+
+        {/* Translate */}
+        <section className="group">
+          <h2>{t.groupTranslate}</h2>
+          <p className="group-desc">{t.groupTranslateDesc}</p>
+          <div className="field">
+            <label htmlFor="tr-enabled">{t.translateEnabled}</label>
+            <input
+              id="tr-enabled"
+              type="checkbox"
+              checked={cfg.translate?.enabled !== false}
+              onChange={(e) =>
+                update((d) => {
+                  if (!d.translate) {
+                    // Backfill from defaults so older configs missing the
+                    // translate block get a complete set in one toggle.
+                    d.translate = defaultConfig().translate!;
+                  }
+                  d.translate.enabled = e.target.checked;
+                })
+              }
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="tr-hotkey">
+              {t.translateHotkey}
+              <span className="hint">{t.translateHotkeyHint}</span>
+            </label>
+            <input
+              id="tr-hotkey"
+              type="text"
+              value={cfg.translate?.hotkey ?? "f8"}
+              onChange={(e) =>
+                update((d) => {
+                  if (!d.translate) return;
+                  d.translate.hotkey = e.target.value;
+                })
+              }
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="tr-target">
+              {t.translateTargetLanguage}
+              <span className="hint">{t.translateTargetLanguageHint}</span>
+            </label>
+            <select
+              id="tr-target"
+              value={cfg.translate?.target_language ?? "en"}
+              onChange={(e) =>
+                update((d) => {
+                  if (!d.translate) return;
+                  d.translate.target_language = e.target.value;
+                })
+              }
+            >
+              <option value="en">English (en)</option>
+              <option value="zh">中文 (zh)</option>
+              <option value="ja">日本語 (ja)</option>
+              <option value="ko">한국어 (ko)</option>
+              <option value="de">Deutsch (de)</option>
+              <option value="fr">Français (fr)</option>
+              <option value="es">Español (es)</option>
+              <option value="it">Italiano (it)</option>
+              <option value="pt">Português (pt)</option>
+              <option value="ru">Русский (ru)</option>
+            </select>
+          </div>
+          <div className="field">
+            <label htmlFor="tr-smart">{t.translateSmartTarget}</label>
+            <input
+              id="tr-smart"
+              type="checkbox"
+              checked={cfg.translate?.smart_target === true}
+              onChange={(e) =>
+                update((d) => {
+                  if (!d.translate) return;
+                  d.translate.smart_target = e.target.checked;
+                })
+              }
+            />
+          </div>
+          <p className="group-desc">{t.translateSmartTargetHint}</p>
         </section>
 
         {/* Inject */}

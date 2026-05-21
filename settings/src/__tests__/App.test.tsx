@@ -101,4 +101,24 @@ describe("<App />", () => {
       expect(node?.textContent ?? "").toMatch(/boom/);
     });
   });
+
+  it("renders the Translation Mode section with default F8 / English", async () => {
+    render(<App />);
+    // Wait for the form to appear, then assert the new Translate group is present.
+    await waitFor(() => screen.getByRole("button", { name: "中文" }));
+    // Group heading exists in either zh or en. The default lang depends on
+    // navigator.language, so accept either by class lookup.
+    const headings = Array.from(document.querySelectorAll("section.group h2"))
+      .map((n) => n.textContent ?? "");
+    expect(headings.some((h) => /翻译模式|Translation Mode/i.test(h))).toBe(true);
+
+    const hotkeyInput = document.getElementById("tr-hotkey") as HTMLInputElement;
+    expect(hotkeyInput.value).toBe("f8");
+
+    const target = document.getElementById("tr-target") as HTMLSelectElement;
+    expect(target.value).toBe("en");
+
+    const smart = document.getElementById("tr-smart") as HTMLInputElement;
+    expect(smart.checked).toBe(false);
+  });
 });

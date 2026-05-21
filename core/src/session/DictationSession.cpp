@@ -70,15 +70,17 @@ void DictationSession::SetPhase(Phase p, std::wstring detail) {
     if (bus_) bus_->Publish({p, std::move(detail)});
 }
 
-void DictationSession::StartRecording() {
+void DictationSession::StartRecording(Mode mode) {
     Phase expected = Phase::Idle;
     if (!phase_.compare_exchange_strong(expected, Phase::Recording)) {
         spdlog::warn("[session] StartRecording ignored (phase={})",
                      PhaseName(phase_.load()));
         return;
     }
+    mode_ = mode;
     t_press_ = std::chrono::steady_clock::now();
-    spdlog::info("==> [session] start recording");
+    spdlog::info("==> [session] start recording (mode={})",
+                 mode == Mode::Translate ? "translate" : "polish");
     if (bus_) bus_->Publish({Phase::Recording, L""});
 
     // Kick a UIA snapshot of the focus context in parallel with recording.
@@ -171,9 +173,23 @@ void DictationSession::DoRecognizeAndPolish() {
     tgt.focused_hwnd = ::GetForegroundWindow();
 
     polish::PolishContext pctx;
-    pctx.style = cfg_.polish.mode;
     pctx.focus_app        = ectx.app_label;
+    pctx.scene_hint       = ectx.scene_hint;
+    pctx.recent_text      = ectx.recent_text;
+    pctx.user_typed       = ectx.user_typed;
     pctx.surrounding_text = focus::AsPromptBlock(ectx);
+
+    if (mode_ == Mode::Translate) {
+        // Translation borrows the polish style ladder via the polisher's
+        // construction-time mode_ — we only flip the discriminator.
+        pctx.style           = "translate";
+        pctx.target_language = cfg_.translate.target_language;
+        pctx.source_language = cfg_.asr.language;
+        spdlog::info("[session] translate -> target='{}' source='{}'",
+                     pctx.target_language, pctx.source_language);
+    } else {
+        pctx.style = cfg_.polish.mode;
+    }
 
     SetPhase(Phase::Polishing, raw);
 

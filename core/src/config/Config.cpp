@@ -97,6 +97,14 @@ AppConfig Parse(const std::string& body) {
     if (j.contains("autostart") && j["autostart"].is_object()) {
         GetOpt(j["autostart"], "enabled", c.autostart.enabled);
     }
+    if (j.contains("translate") && j["translate"].is_object()) {
+        const auto& t = j["translate"];
+        GetOpt(t, "enabled",         c.translate.enabled);
+        GetOpt(t, "hotkey",          c.translate.hotkey);
+        GetOpt(t, "min_hold_ms",     c.translate.min_hold_ms);
+        GetOpt(t, "target_language", c.translate.target_language);
+        GetOpt(t, "smart_target",    c.translate.smart_target);
+    }
 
     return c;
 }
