@@ -2,7 +2,12 @@ import { describe, it, expect } from "vitest";
 import { defaultConfig, isFirstRun, AppConfig } from "../config";
 
 describe("defaultConfig", () => {
-  it("produces values matching the C++ defaults", () => {
+  it("returns the documented Settings UI defaults", () => {
+    // Note: this is the *Settings UI* default, which intentionally
+    // differs from the C++ Core's `AsrConfig::provider` default of
+    // "azure-rest" — the UI seeds new users on streaming Azure for a
+    // better demo experience. Don't tighten this assertion to assume
+    // cross-project parity.
     const c = defaultConfig();
     expect(c.asr.provider).toBe("azure-stream");
     expect(c.asr.language).toBe("zh-CN");
