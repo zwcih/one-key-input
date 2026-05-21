@@ -121,4 +121,58 @@ describe("<App />", () => {
     const smart = document.getElementById("tr-smart") as HTMLInputElement;
     expect(smart.checked).toBe(false);
   });
+
+  // Regression test for the v0.1 → v0.2 upgrade white-screen bug:
+  // an upgraded user's on-disk config.json has no `translate` section,
+  // and the form previously crashed reading `cfg.translate.enabled`.
+  // The mount-time backfill must fill in the default translate block
+  // so the form renders normally.
+  it("backfills a missing translate section from a v0.1 config without white-screening", async () => {
+    invokeMock.mockImplementation((cmd: string) => {
+      if (cmd === "load_config") {
+        // v0.1-shape config: complete except no `translate` key.
+        return Promise.resolve({
+          asr: {
+            provider: "azure-stream",
+            language: "zh-CN",
+            provider_options: { key: "real-key", region: "westus2" },
+          },
+          polish: {
+            provider: "openai-azure",
+            mode: "tidy",
+            provider_options: { key: "real-oai", endpoint: "" },
+          },
+          inject: { mode: "sendinput" },
+          hotkey: { key: "f9", min_hold_ms: 250 },
+          sound: { enabled: true },
+          autostart: { enabled: true },
+          // translate intentionally absent
+        });
+      }
+      if (cmd === "save_config") return Promise.resolve();
+      if (cmd === "test_credentials") return Promise.resolve([]);
+      if (cmd === "start_core") return Promise.resolve();
+      return Promise.reject(new Error("unmocked invoke: " + cmd));
+    });
+
+    render(<App />);
+    // Form must render — header buttons are a reliable signal.
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "中文" })).toBeInTheDocument(),
+    );
+
+    // Translate fields must show the documented defaults (F8 / en / smart off).
+    const hotkeyInput = document.getElementById("tr-hotkey") as HTMLInputElement;
+    expect(hotkeyInput).not.toBeNull();
+    expect(hotkeyInput.value).toBe("f8");
+
+    const target = document.getElementById("tr-target") as HTMLSelectElement;
+    expect(target.value).toBe("en");
+
+    const enabled = document.getElementById("tr-enabled") as HTMLInputElement;
+    expect(enabled.checked).toBe(true);
+
+    const smart = document.getElementById("tr-smart") as HTMLInputElement;
+    expect(smart.checked).toBe(false);
+  });
 });
