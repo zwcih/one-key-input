@@ -93,3 +93,27 @@ export function isFirstRun(c: AppConfig): boolean {
   }
   return false;
 }
+
+// Backfill any top-level section the on-disk config is missing using the
+// current schema's defaults. This is the upgrade-path safety net: a v0.1
+// config.json predates the `translate` block, and the form would crash
+// (or silently drop the section on save) if we didn't fill it in here.
+//
+// Defending every known top-level section — not just `translate` — means
+// the *next* schema addition won't repeat the v0.1 → v0.2 white-screen
+// regression. Returns a new object; the input is not mutated. Unknown
+// top-level keys are preserved for forward compatibility.
+export function mergeWithDefaults(c: AppConfig): AppConfig {
+  const d = defaultConfig();
+  // structuredClone so callers can't observe shared references between
+  // the input, the defaults, and the result.
+  const out = structuredClone(c) as AppConfig;
+  if (out.asr === undefined) out.asr = d.asr;
+  if (out.polish === undefined) out.polish = d.polish;
+  if (out.inject === undefined) out.inject = d.inject;
+  if (out.hotkey === undefined) out.hotkey = d.hotkey;
+  if (out.sound === undefined) out.sound = d.sound;
+  if (out.autostart === undefined) out.autostart = d.autostart;
+  if (out.translate === undefined) out.translate = d.translate;
+  return out;
+}

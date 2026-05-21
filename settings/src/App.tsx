@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { DICTS, Dict, Lang } from "./i18n/dicts";
-import { AppConfig, defaultConfig, isFirstRun } from "./config";
+import { AppConfig, defaultConfig, isFirstRun, mergeWithDefaults } from "./config";
 import logoZh from "./assets/logo.png";
 import logoEn from "./assets/logo-en.png";
 
@@ -36,11 +36,12 @@ export default function App() {
   // --- load on mount ---
   useEffect(() => {
     invoke<AppConfig>("load_config")
-      .then((c) => {
-        // Backfill keys missing from older configs so the form always has
-        // a value to bind to.
-        if (!c.autostart) c.autostart = { enabled: true };
-        if (!c.sound) c.sound = { enabled: true };
+      .then((raw) => {
+        // Backfill any sections the on-disk config predates (v0.1 → v0.2
+        // upgraders are missing `translate`, for instance). Without this
+        // the form crashes reading e.g. cfg.translate.enabled and Settings
+        // shows a white window. See mergeWithDefaults() in ./config.
+        const c = mergeWithDefaults(raw);
         setCfg(c);
         setFirstRun(isFirstRun(c));
       })
@@ -113,7 +114,7 @@ export default function App() {
   const onCancel = async () => {
     // Reload from disk, discarding edits.
     try {
-      const fresh = await invoke<AppConfig>("load_config");
+      const fresh = mergeWithDefaults(await invoke<AppConfig>("load_config"));
       setCfg(fresh);
       setFirstRun(isFirstRun(fresh));
       setDirty(false);
