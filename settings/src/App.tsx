@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { DICTS, Dict, Lang } from "./i18n/dicts";
-import { AppConfig, isFirstRun } from "./config";
+import { AppConfig, defaultConfig, isFirstRun } from "./config";
 import logoZh from "./assets/logo.png";
 import logoEn from "./assets/logo-en.png";
 
@@ -370,16 +370,11 @@ export default function App() {
               onChange={(e) =>
                 update((d) => {
                   if (!d.translate) {
-                    d.translate = {
-                      enabled: e.target.checked,
-                      hotkey: "f8",
-                      min_hold_ms: 250,
-                      target_language: "en",
-                      smart_target: false,
-                    };
-                  } else {
-                    d.translate.enabled = e.target.checked;
+                    // Backfill from defaults so older configs missing the
+                    // translate block get a complete set in one toggle.
+                    d.translate = defaultConfig().translate!;
                   }
+                  d.translate.enabled = e.target.checked;
                 })
               }
             />
