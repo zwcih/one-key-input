@@ -152,10 +152,19 @@ void OpenAIPolisher::Polish(const std::wstring& raw,
     spdlog::info("[polish.openai] POST {} mode={}", url, effective_mode);
 
     std::string sse_buf;
+    // Streaming responses route the body through the write callback, so
+    // resp.body is empty on errors. Snapshot the first ~2KB of raw bytes so
+    // non-2xx responses (Azure content-filter 400 etc.) surface their JSON
+    // error in the log instead of "body_head=".
+    std::string raw_head;
     auto t0 = std::chrono::steady_clock::now();
     bool first_token_logged = false;
 
     auto on_chunk = [&](std::string_view data) -> bool {
+        if (raw_head.size() < 2048) {
+            raw_head.append(data.data(),
+                            std::min<size_t>(data.size(), 2048 - raw_head.size()));
+        }
         sse_buf.append(data.data(), data.size());
         for (;;) {
             auto pos = sse_buf.find('\n');
@@ -201,7 +210,10 @@ void OpenAIPolisher::Polish(const std::wstring& raw,
     if (!resp.ok()) {
         std::string err = "polish http " + std::to_string(resp.status);
         if (!resp.error_msg.empty()) err += ": " + resp.error_msg;
-        spdlog::error("[polish.openai] {} body_head={}", err, resp.body.substr(0, 200));
+        // Prefer the streaming bytes we captured; fall back to resp.body for
+        // non-streaming failures (e.g. early connection errors).
+        const std::string& head = !raw_head.empty() ? raw_head : resp.body;
+        spdlog::error("[polish.openai] {} body_head={}", err, head.substr(0, 500));
         if (on_token) on_token(L"", true);
         return;
     }

@@ -49,20 +49,20 @@ TEST(TranslationPrompt, BuildSystemPromptContainsTargetLanguage) {
     in.target_language = "en";
     auto sys = BuildSystemPrompt(in, "tidy");
     EXPECT_NE(sys.find("English"), std::string::npos);
-    EXPECT_NE(sys.find("[TARGET LANGUAGE]"), std::string::npos);
-    EXPECT_NE(sys.find("(en)"), std::string::npos);
+    EXPECT_NE(sys.find("en"), std::string::npos);  // primary subtag
 }
 
 TEST(TranslationPrompt, BuildSystemPromptOmitsEmptyContextBlocks) {
     TranslationPromptInput in;
     in.target_language = "ja";
     auto sys = BuildSystemPrompt(in, "tidy");
-    // No app/scene/nearby/typed/vocab populated -> no [APP] [SCENE] etc.
-    EXPECT_EQ(sys.find("[APP]"),    std::string::npos);
-    EXPECT_EQ(sys.find("[SCENE]"),  std::string::npos);
-    EXPECT_EQ(sys.find("[NEARBY]"), std::string::npos);
-    EXPECT_EQ(sys.find("[TYPED]"),  std::string::npos);
-    EXPECT_EQ(sys.find("[KEEP VERBATIM]"), std::string::npos);
+    // No app/scene/nearby/typed/vocab populated -> none of those labels
+    // should appear in the system prompt.
+    EXPECT_EQ(sys.find("应用："),       std::string::npos);
+    EXPECT_EQ(sys.find("场景："),       std::string::npos);
+    EXPECT_EQ(sys.find("周围内容："),   std::string::npos);
+    EXPECT_EQ(sys.find("已输入："),     std::string::npos);
+    EXPECT_EQ(sys.find("保持原样的词："), std::string::npos);
     EXPECT_NE(sys.find("Japanese"), std::string::npos);
 }
 
@@ -71,7 +71,7 @@ TEST(TranslationPrompt, BuildSystemPromptIncludesKeepVerbatimList) {
     in.target_language = "en";
     in.vocab_hints = { L"parseConfig", L"OneKeyInput", L"F9" };
     auto sys = BuildSystemPrompt(in, "tidy");
-    auto pos = sys.find("[KEEP VERBATIM]");
+    auto pos = sys.find("保持原样的词：");
     ASSERT_NE(pos, std::string::npos);
     // Each term should appear in the list.
     EXPECT_NE(sys.find("parseConfig"), std::string::npos);
@@ -98,18 +98,19 @@ TEST(TranslationPrompt, BuildSystemPromptIncludesPeerLanguageWhenSet) {
     in.target_language = "ja";
     in.detected_peer_language = "ja";
     auto sys = BuildSystemPrompt(in, "tidy");
-    EXPECT_NE(sys.find("PEER LANGUAGE"), std::string::npos);
+    EXPECT_NE(sys.find("对方语言"), std::string::npos);
     EXPECT_NE(sys.find("ja"), std::string::npos);
 }
 
-TEST(TranslationPrompt, BuildUserMessageContainsTranscriptAndRequest) {
+TEST(TranslationPrompt, BuildUserMessageContainsTranscript) {
     TranslationPromptInput in;
     in.target_language = "en";
     in.raw_transcript = L"你好，世界";
     auto user = BuildUserMessage(in);
-    EXPECT_NE(user.find("[ORIGINAL]"), std::string::npos);
-    EXPECT_NE(user.find("[REQUEST]"),  std::string::npos);
-    EXPECT_NE(user.find("English"),    std::string::npos);
-    // The transcript must round-trip through UTF-8.
+    // The user message is now just the transcript — no [ORIGINAL]/[REQUEST]
+    // wrapper, since dual-channel instructions tripped Azure's jailbreak
+    // classifier. The transcript must round-trip through UTF-8.
     EXPECT_NE(user.find("\xe4\xbd\xa0"), std::string::npos);   // 你
+    EXPECT_EQ(user.find("[ORIGINAL]"), std::string::npos);
+    EXPECT_EQ(user.find("[REQUEST]"),  std::string::npos);
 }
