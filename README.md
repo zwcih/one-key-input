@@ -65,12 +65,18 @@ One-Key Input 想做到的是：
 
 > 文件夹大小 ~25 MB，便携，无需安装。
 
+> ⚠️ **首次运行：Windows 会拦一下**  
+> 因为 exe 没有代码签名证书（开源软件买不起也没必要），Windows SmartScreen 会弹一个蓝色警告框 "Windows protected your PC"。点 **More info（更多信息）→ Run anyway（仍要运行）** 即可。Defender 不会真把它当病毒——只是因为这个文件下载量还不够多、没建立信誉。  
+> 想一劳永逸消除提示：解压前右键 zip → **属性 → 勾选 "Unblock（取消阻止）" → 确定**，再解压出来的 exe 不会带"网络下载"标记。
+>
+> 介意的话，欢迎自己 [从源码编译](#开发) —— 自己编出来的 exe 不会被拦。
+
 ### 2. 第一次运行
 
 双击 `onekey-core.exe`：
 - 没有 `config.json` 时会自动弹出设置窗口
 - 填入你的 Azure Speech key + region，以及润色 LLM 的 key / endpoint
-- 点 **"保存并启动"** —— 设置会先用真实接口验证凭据，通过后才写��� + 启动 Core
+- 点 **"保存并启动"** —— 设置会先用真实接口验证凭据，通过后才写入 + 启动 Core
 
 ### 3. 使用
 
@@ -118,7 +124,7 @@ F9 松开  → 等最终识别结果
          → 错误音 / 提示音 / 托盘 tooltip 反馈状态
 ```
 
-详细��构文档稍后整理。
+详细架构文档稍后整理。
 
 ## 隐私
 
@@ -144,7 +150,7 @@ cd settings && npm install && npm run tauri build
 
 - 🐛 [开 Issue 报 bug](https://github.com/zwcih/one-key-input/issues/new/choose)
 - 💡 [Discussions](https://github.com/zwcih/one-key-input/discussions) 聊想法 / 提问
-- ⭐ 用得顺手的话给个 star，���能看到
+- ⭐ 用得顺手的话给个 star，我能看到
 
 ## License
 

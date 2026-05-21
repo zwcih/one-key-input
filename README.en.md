@@ -65,6 +65,12 @@ Grab `OneKeyInput-x.y.z-portable.zip` from the [Releases](https://github.com/zwc
 
 > About 25 MB. Portable, no installer.
 
+> ⚠️ **First launch: Windows will block it once**  
+> The exe isn't code-signed (signing certs cost $200+/yr — not worth it for an unpaid open-source v0.1), so SmartScreen pops a blue **"Windows protected your PC"** dialog. Click **More info → Run anyway**. This is not malware detection — Windows just hasn't seen the file enough times to trust it yet.  
+> One-time fix: before extracting, right-click the zip → **Properties → check "Unblock" → OK**. The exes inside won't carry the "downloaded from internet" mark.
+>
+> Or [build it yourself](#development) — locally-built exes don't get blocked.
+
 ### 2. First run
 
 Double-click `onekey-core.exe`:
