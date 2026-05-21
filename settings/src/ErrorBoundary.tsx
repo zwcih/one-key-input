@@ -35,9 +35,7 @@ export class ErrorBoundary extends Component<Props, State> {
   private handleReload = (): void => {
     // Full reload re-runs load_config, which is usually enough to
     // recover from a transient state issue.
-    if (typeof window !== "undefined") {
-      window.location.reload();
-    }
+    window.location.reload();
   };
 
   render(): ReactNode {

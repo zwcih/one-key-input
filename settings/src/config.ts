@@ -108,12 +108,12 @@ export function mergeWithDefaults(c: AppConfig): AppConfig {
   // structuredClone so callers can't observe shared references between
   // the input, the defaults, and the result.
   const out = structuredClone(c) as AppConfig;
-  if (!out.asr) out.asr = d.asr;
-  if (!out.polish) out.polish = d.polish;
-  if (!out.inject) out.inject = d.inject;
-  if (!out.hotkey) out.hotkey = d.hotkey;
-  if (!out.sound) out.sound = d.sound;
-  if (!out.autostart) out.autostart = d.autostart;
-  if (!out.translate) out.translate = d.translate;
+  if (out.asr === undefined) out.asr = d.asr;
+  if (out.polish === undefined) out.polish = d.polish;
+  if (out.inject === undefined) out.inject = d.inject;
+  if (out.hotkey === undefined) out.hotkey = d.hotkey;
+  if (out.sound === undefined) out.sound = d.sound;
+  if (out.autostart === undefined) out.autostart = d.autostart;
+  if (out.translate === undefined) out.translate = d.translate;
   return out;
 }
