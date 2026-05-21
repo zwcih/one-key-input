@@ -11,9 +11,27 @@ namespace onekey::polish {
 struct PolishContext {
     std::wstring focus_app;
     std::wstring window_title;
-    std::wstring surrounding_text;
+    std::wstring surrounding_text;   // already-rendered focus block (legacy path)
+
+    // Raw structured fields populated by focus::Extract — used by the
+    // translation prompt builder, which assembles its own block. Empty
+    // when the polish-mode path doesn't bother filling them.
+    std::wstring scene_hint;
+    std::wstring recent_text;
+    std::wstring user_typed;
+
     std::vector<std::wstring> vocab_hints;
-    std::string  style = "tidy"; // raw | tidy | formal | code-comment | im-chat
+    std::string  style = "tidy"; // raw | tidy | formal | code-comment | im-chat | translate
+
+    // Translation-mode parameters. Only consulted when `style == "translate"`.
+    // BCP-47-ish primary subtag (e.g. "en", "zh", "ja").
+    std::string  target_language;
+    // BCP-47 tag of the ASR side ("zh-CN") — passed through for the
+    // translator's [SOURCE LANGUAGE] hint.
+    std::string  source_language;
+    // Detected language of the focused window's surrounding text. Optional;
+    // populated only when smart-target is on and detection succeeded.
+    std::string  detected_peer_language;
 };
 
 // Polisher contract.

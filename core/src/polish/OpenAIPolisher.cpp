@@ -1,4 +1,5 @@
 #include "OpenAIPolisher.h"
+#include "TranslationPrompt.h"
 #include "../net/HttpClient.h"
 #include "../util/Strings.h"
 
@@ -58,27 +59,57 @@ void OpenAIPolisher::Polish(const std::wstring& raw,
     // change polish mode at runtime (tray menu) without rebuilding the
     // polisher. Falls back to the construction-time mode.
     const std::string& effective_mode = ctx.style.empty() ? mode_ : ctx.style;
-    const char* sys = PromptFor(effective_mode);
-    if (!sys) {
-        // raw mode — no LLM call.
-        if (on_token) on_token(raw, true);
-        return;
+
+    // ---- Translation branch ----
+    // The translation hotkey (F8) sets style="translate" and supplies
+    // target_language. We swap the entire prompt for a structured
+    // translator prompt; everything else (HTTP transport, streaming,
+    // failure handling) is shared with polish.
+    bool is_translate = (effective_mode == "translate");
+
+    std::string system_combined;
+    std::string user_utf8;
+
+    if (is_translate) {
+        TranslationPromptInput tin;
+        tin.target_language        = ctx.target_language.empty()
+                                       ? std::string("en")
+                                       : ctx.target_language;
+        tin.source_language        = ctx.source_language;
+        tin.detected_peer_language = ctx.detected_peer_language;
+        tin.app_label              = ctx.focus_app;
+        tin.scene_hint             = ctx.scene_hint;
+        tin.recent_text            = ctx.recent_text;
+        tin.user_typed             = ctx.user_typed;
+        tin.vocab_hints            = ctx.vocab_hints;
+        tin.raw_transcript         = raw;
+        // Borrow the polish style ladder so Formal -> formal translation,
+        // Raw -> literal translation. Construction-time mode is the
+        // user's currently-selected polish.mode.
+        system_combined = BuildSystemPrompt(tin, mode_);
+        user_utf8       = BuildUserMessage(tin);
+    } else {
+        const char* sys = PromptFor(effective_mode);
+        if (!sys) {
+            // raw mode — no LLM call.
+            if (on_token) on_token(raw, true);
+            return;
+        }
+        user_utf8 = util::WideToUtf8(raw);
+        // If the session captured focus context (via FocusContext + extractor),
+        // append it to the system message as a bounded reference block. We
+        // intentionally do NOT put it in the user message — the LLM should
+        // treat it as background, not as part of what to rewrite.
+        system_combined = sys;
+        if (!ctx.surrounding_text.empty()) {
+            system_combined += "\n\n";
+            system_combined += util::WideToUtf8(ctx.surrounding_text);
+            spdlog::info("[polish.openai] system prompt augmented with focus context "
+                         "(+{} bytes)", system_combined.size() - std::strlen(sys));
+        }
     }
 
-    std::string user_utf8 = util::WideToUtf8(raw);
     bool azure_flavor = IsAzureFlavor(provider_, endpoint_);
-
-    // If the session captured focus context (via FocusContext + extractor),
-    // append it to the system message as a bounded reference block. We
-    // intentionally do NOT put it in the user message — the LLM should
-    // treat it as background, not as part of what to rewrite.
-    std::string system_combined = sys;
-    if (!ctx.surrounding_text.empty()) {
-        system_combined += "\n\n";
-        system_combined += util::WideToUtf8(ctx.surrounding_text);
-        spdlog::info("[polish.openai] system prompt augmented with focus context "
-                     "(+{} bytes)", system_combined.size() - std::strlen(sys));
-    }
 
     nlohmann::json body = {
         {"messages", nlohmann::json::array({
@@ -92,7 +123,6 @@ void OpenAIPolisher::Polish(const std::wstring& raw,
     if (!azure_flavor) {
         body["model"] = deployment_;
     }
-    (void)ctx; // surrounding_text already consumed; focus_app/etc reserved
 
     // Resolve URL
     std::string url;

@@ -45,6 +45,7 @@ set(ONEKEY_CORE_OBJ_SOURCES
     src/asr/AzureStreamAsrEngine.cpp
     src/polish/PolisherFactory.cpp
     src/polish/OpenAIPolisher.cpp
+    src/polish/TranslationPrompt.cpp
     src/inject/InjectorStrategy.cpp
     src/inject/ClipboardInjector.cpp
     src/inject/SendInputUnicodeInjector.cpp

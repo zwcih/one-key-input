@@ -78,6 +78,30 @@ bool HotkeyManager::Install(const std::string& key_name, int min_hold_ms) {
     return true;
 }
 
+bool HotkeyManager::InstallSecondary(const std::string& key_name, int min_hold_ms) {
+    int vk = ParseKey(key_name);
+    if (vk == 0) {
+        spdlog::error("[hotkey] secondary: unknown key: {}", key_name);
+        return false;
+    }
+    if (vk == vk_) {
+        spdlog::error("[hotkey] secondary key '{}' duplicates primary; ignoring",
+                      key_name);
+        return false;
+    }
+    if (!hook_) {
+        spdlog::error("[hotkey] secondary requested before primary Install()");
+        return false;
+    }
+    vk2_ = vk;
+    min_hold_ms2_ = min_hold_ms;
+    pressed2_ = false;
+    press_tick2_ = 0;
+    spdlog::info("[hotkey] secondary installed: key='{}' (vk=0x{:X}) min_hold={}ms",
+                 key_name, vk2_, min_hold_ms2_);
+    return true;
+}
+
 void HotkeyManager::Uninstall() {
     if (hook_) {
         ::UnhookWindowsHookEx(static_cast<HHOOK>(hook_));
@@ -88,23 +112,35 @@ void HotkeyManager::Uninstall() {
 
 void HotkeyManager::OnHookEvent(unsigned long wParam, const void* kbll) {
     const KBDLLHOOKSTRUCT* kb = static_cast<const KBDLLHOOKSTRUCT*>(kbll);
-    if (kb->vkCode != static_cast<DWORD>(vk_)) return;
-
     bool is_down = (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN);
     bool is_up   = (wParam == WM_KEYUP   || wParam == WM_SYSKEYUP);
-    if (is_down && !pressed_) {
-        pressed_ = true;
-        press_tick_ = ::GetTickCount64();
-        if (on_press) on_press();
-    } else if (is_up && pressed_) {
-        pressed_ = false;
-        unsigned long long held = ::GetTickCount64() - press_tick_;
-        if (static_cast<int>(held) < min_hold_ms_) {
-            spdlog::info("[hotkey] short press {}ms (< {}ms)",
-                         held, min_hold_ms_);
+
+    auto handle = [&](int vk, int min_hold, bool& pressed,
+                      unsigned long long& press_tick,
+                      const std::function<void()>& on_p,
+                      const std::function<void()>& on_r,
+                      const char* tag) {
+        if (vk == 0) return;
+        if (kb->vkCode != static_cast<DWORD>(vk)) return;
+        if (is_down && !pressed) {
+            pressed = true;
+            press_tick = ::GetTickCount64();
+            if (on_p) on_p();
+        } else if (is_up && pressed) {
+            pressed = false;
+            unsigned long long held = ::GetTickCount64() - press_tick;
+            if (static_cast<int>(held) < min_hold) {
+                spdlog::info("[hotkey:{}] short press {}ms (< {}ms)",
+                             tag, held, min_hold);
+            }
+            if (on_r) on_r();
         }
-        if (on_release) on_release();
-    }
+    };
+
+    handle(vk_,  min_hold_ms_,  pressed_,  press_tick_,
+           on_press,           on_release,           "primary");
+    handle(vk2_, min_hold_ms2_, pressed2_, press_tick2_,
+           on_press_secondary, on_release_secondary, "secondary");
 }
 
 }  // namespace onekey::hotkey

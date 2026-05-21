@@ -32,5 +32,14 @@
   },
   "autostart": {
     "enabled": true
+  },
+  "translate": {
+    "_comment": "Translation mode. F8 by default; reuses ASR + context + LLM, swaps the prompt.",
+    "enabled": true,
+    "hotkey": "f8",
+    "min_hold_ms": 250,
+    "target_language": "en",
+    "smart_target": false,
+    "smart_target_hint": "Set true to auto-detect target from the focused window's content (experimental; may be wrong). Pin target_language for consistent behavior."
   }
 }

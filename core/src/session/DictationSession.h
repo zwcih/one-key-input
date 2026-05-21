@@ -33,7 +33,12 @@ public:
                      audio::WasapiCapture* capture,
                      EventBus* bus);
 
-    void StartRecording();
+    enum class Mode {
+        Polish,     // F9 — run polish.mode through OpenAIPolisher
+        Translate,  // F8 — run translation prompt with translate.target_language
+    };
+
+    void StartRecording(Mode mode = Mode::Polish);
     void StopAndProcess();
 
     Phase CurrentPhase() const { return phase_.load(); }
@@ -56,6 +61,10 @@ private:
 
     std::chrono::steady_clock::time_point t_press_;
     std::chrono::steady_clock::time_point t_release_;
+
+    // The mode chosen at StartRecording() time and consumed at polish time.
+    // Defaults to Polish so the legacy single-hotkey flow is unchanged.
+    Mode mode_ = Mode::Polish;
 
     // Captured at StartRecording() and consumed at SessionFinal. Held while
     // the user is dictating so the UIA walk overlaps the recording window

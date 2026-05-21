@@ -66,7 +66,7 @@ bool Application::Init() {
         hotkey_ = std::make_unique<hotkey::HotkeyManager>();
         hotkey_->on_press   = [this]{
             if (paused_.load()) return;
-            session_->StartRecording();
+            session_->StartRecording(session::DictationSession::Mode::Polish);
         };
         hotkey_->on_release = [this]{
             if (paused_.load()) return;
@@ -75,6 +75,28 @@ bool Application::Init() {
         if (!hotkey_->Install(cfg_.hotkey.key, cfg_.hotkey.min_hold_ms)) {
             spdlog::error("hotkey install failed");
             return false;
+        }
+        // Translation hotkey (F8 by default). Optional — if it fails we
+        // log + continue: polish keeps working.
+        if (cfg_.translate.enabled) {
+            hotkey_->on_press_secondary = [this]{
+                if (paused_.load()) return;
+                session_->StartRecording(session::DictationSession::Mode::Translate);
+            };
+            hotkey_->on_release_secondary = [this]{
+                if (paused_.load()) return;
+                session_->StopAndProcess();
+            };
+            if (!hotkey_->InstallSecondary(cfg_.translate.hotkey,
+                                           cfg_.translate.min_hold_ms)) {
+                spdlog::warn("[app] translate hotkey '{}' failed to register; "
+                             "translation mode disabled this session",
+                             cfg_.translate.hotkey);
+            } else {
+                spdlog::info("[app] translate hotkey '{}' -> target '{}'",
+                             cfg_.translate.hotkey,
+                             cfg_.translate.target_language);
+            }
         }
 
         // UI — tray and overlay live on the main thread alongside the hotkey hook.

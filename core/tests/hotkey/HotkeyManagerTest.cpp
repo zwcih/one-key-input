@@ -33,3 +33,17 @@ TEST(HotkeyManager, DestructorOnNotInstalledIsSafe) {
     HotkeyManager mgr;
     EXPECT_NO_THROW(mgr.Uninstall());
 }
+
+TEST(HotkeyManager, InstallSecondaryWithoutPrimaryFails) {
+    // Secondary registration depends on the LL hook the primary install
+    // sets up — calling it first should fail cleanly.
+    HotkeyManager mgr;
+    EXPECT_FALSE(mgr.InstallSecondary("f8", 250));
+}
+
+TEST(HotkeyManager, InstallSecondaryUnknownKeyFails) {
+    HotkeyManager mgr;
+    // Even without a real hook, parser-level rejection comes first when the
+    // key name is bogus.
+    EXPECT_FALSE(mgr.InstallSecondary("definitely-not-a-key", 250));
+}

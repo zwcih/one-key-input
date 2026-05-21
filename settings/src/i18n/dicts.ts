@@ -20,6 +20,8 @@ export type Dict = {
   groupSoundDesc: string;
   groupStartup: string;
   groupStartupDesc: string;
+  groupTranslate: string;
+  groupTranslateDesc: string;
 
   hotkeyKey: string;
   hotkeyHoldMs: string;
@@ -51,6 +53,14 @@ export type Dict = {
   soundEnabled: string;
   autostartEnabled: string;
   autostartHint: string;
+
+  translateEnabled: string;
+  translateHotkey: string;
+  translateHotkeyHint: string;
+  translateTargetLanguage: string;
+  translateTargetLanguageHint: string;
+  translateSmartTarget: string;
+  translateSmartTargetHint: string;
 
   cancel: string;
   save: string;
@@ -85,6 +95,9 @@ export const zh: Dict = {
   groupSoundDesc: "录音开始/结束的提示音。",
   groupStartup: "启动",
   groupStartupDesc: "Windows 登录时是否自动启动。",
+  groupTranslate: "翻译模式",
+  groupTranslateDesc:
+    "另一个热键，按住说母语 → 松开后输出目标语言。复用润色管线（同 ASR、同上下文、同 LLM），仅替换 prompt。润色风格沿用上方的「默认模式」（Raw/Tidy/Formal）。",
 
   hotkeyKey: "快捷键",
   hotkeyHoldMs: "最短按住时间 (ms)",
@@ -117,6 +130,16 @@ export const zh: Dict = {
   soundEnabled: "启用提示音",
   autostartEnabled: "开机自动启动",
   autostartHint: "登录 Windows 后自动启动 One-Key Input。",
+
+  translateEnabled: "启用翻译热键",
+  translateHotkey: "翻译热键",
+  translateHotkeyHint: "默认 F8，与上方的录音热键并存（不要重复）。",
+  translateTargetLanguage: "目标语言",
+  translateTargetLanguageHint:
+    "ASR 识别出的语言不是这里选的目标语言时才会触发翻译。例如目标=英文：说中文翻英文，说英文不翻。",
+  translateSmartTarget: "智能目标语言（实验性，默认关）",
+  translateSmartTargetHint:
+    "开启后将根据当前焦点窗口的内容自动判断目标语言（如对方语言），可能不准。准确性优先请关闭此项并固定上方的「目标语言」。",
 
   cancel: "取消",
   save: "保存",
@@ -152,6 +175,9 @@ export const en: Dict = {
   groupSoundDesc: "Chirps when recording starts / stops.",
   groupStartup: "Startup",
   groupStartupDesc: "Whether to launch at Windows login.",
+  groupTranslate: "Translation Mode",
+  groupTranslateDesc:
+    "A second hotkey: hold to speak in your native language, release to inject the target-language version into the focused window. Reuses the same ASR, context capture, and LLM — only the prompt changes. Polish style above (Raw/Tidy/Formal) carries over.",
 
   hotkeyKey: "Key",
   hotkeyHoldMs: "Min hold (ms)",
@@ -184,6 +210,17 @@ export const en: Dict = {
   soundEnabled: "Enable sound cues",
   autostartEnabled: "Start at Windows login",
   autostartHint: "Launch One-Key Input automatically after you log in.",
+
+  translateEnabled: "Enable the translation hotkey",
+  translateHotkey: "Translate hotkey",
+  translateHotkeyHint:
+    "Defaults to F8. Coexists with the dictation hotkey above — do not pick the same key for both.",
+  translateTargetLanguage: "Target language",
+  translateTargetLanguageHint:
+    "Translation triggers only when the recognized language differs from this. Example: target = English → Chinese gets translated, English stays as-is.",
+  translateSmartTarget: "Smart target language (experimental, off by default)",
+  translateSmartTargetHint:
+    "Detects the language of the focused window's surrounding text and overrides the target. Best-effort: may be wrong. For consistent behavior, leave this off and pin the target language above.",
 
   cancel: "Cancel",
   save: "Save",
