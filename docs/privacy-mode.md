@@ -28,10 +28,10 @@ The current v1 stack (Azure Speech + Azure OpenAI) needs an equivalent
 - Streaming architecture, first-token latency < 300 ms.
 - English for v1: Paraformer copes well enough; v2 will lazy-load `whisper-small` (466 MB) on demand.
 
-### LLM polish: Qwen2.5-3B-Instruct (Q4\_K\_M, GGUF)
+### LLM polish: Qwen2.5-3B-Instruct (Q4_K_M, GGUF)
 
 - SOTA Chinese instruction-following at this parameter size.
-- ~2 GB after Q4\_K\_M quantization → fits the 8 GB laptop budget.
+- ~2 GB after Q4_K_M quantization → fits the 8 GB laptop budget.
 - llama.cpp backend; ~15–20 tok/s on an i5 CPU — good enough for streaming polish.
 - 7B available as an optional "enthusiast" tier (requires 16 GB).
 - Apache 2.0 — no commercial-use friction.
@@ -81,9 +81,9 @@ OpenVINO and QNN as native backends.
 
 | Tier | ASR | LLM | Download | Resident memory |
 |---|---|---|---|---|
-| Entry (8 GB / iGPU) | Paraformer-zh int8 | Qwen2.5-3B Q4\_K\_M | ~2.2 GB | ~2.5 GB |
+| Entry (8 GB / iGPU) | Paraformer-zh int8 | Qwen2.5-3B Q4_K_M | ~2.2 GB | ~2.5 GB |
 | Mainstream + AI PC | Paraformer (NPU) | Qwen2.5-3B INT4 (NPU) | ~2.5 GB | ~3 GB (faster, cooler) |
-| Enthusiast (32 GB + dGPU) | as above | Qwen2.5-7B Q4\_K\_M (opt-in) | +5 GB | +5 GB |
+| Enthusiast (32 GB + dGPU) | as above | Qwen2.5-7B Q4_K_M (opt-in) | +5 GB | +5 GB |
 
 ## Rollout
 
