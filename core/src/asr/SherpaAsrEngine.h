@@ -90,6 +90,11 @@ private:
     std::mutex   text_mu_;
     std::wstring accumulated_;     // all SegmentFinals concatenated
     std::wstring last_partial_;    // de-dupe filter for Partial emission
+
+    // Probed once per session: warn loudly if a future sherpa-onnx upgrade
+    // drops or renames the "is_final" stream option. Without this guard
+    // SetOption silently no-ops and Paraformer tail flush stops working.
+    bool warned_missing_is_final_{false};
 };
 
 }  // namespace onekey::asr

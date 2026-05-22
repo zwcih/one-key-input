@@ -278,10 +278,30 @@ void SherpaAsrEngine::DecodeLoop() {
 
         if (eof) {
             // Tell the recognizer the stream is finalized so it flushes any
-            // tail audio still in its feature buffer. Paraformer's "is_final"
-            // flag is how the C API exposes this for streaming Paraformer.
+            // tail audio still in its feature buffer.
+            //
+            // InputFinished() is the contract — required for every streaming
+            // recognizer to flush the tail.
+            //
+            // The "is_final" stream option is the additional Paraformer-streaming
+            // signal that nudges the decoder to emit a finalized token sequence
+            // without waiting for an endpoint timeout. It is a no-op for
+            // Transducer-style models (Zipformer etc.), but Paraformer needs it.
+            //
+            // We probe HasOption() once and log if it's gone: a future upstream
+            // rename would otherwise be a silent regression — tail text just
+            // arrives late or not at all, and tests pass because they don't
+            // measure latency.
             SherpaOnnxOnlineStreamInputFinished(stream_);
-            SherpaOnnxOnlineStreamSetOption(stream_, "is_final", "1");
+            if (SherpaOnnxOnlineStreamHasOption(stream_, "is_final")) {
+                SherpaOnnxOnlineStreamSetOption(stream_, "is_final", "1");
+            } else if (!warned_missing_is_final_) {
+                warned_missing_is_final_ = true;
+                spdlog::warn("[asr.sherpa] 'is_final' stream option not "
+                             "recognized by this sherpa-onnx build; "
+                             "Paraformer tail flush may be delayed. Check "
+                             "upstream c-api.h for the new option name.");
+            }
         }
 
         while (SherpaOnnxIsOnlineStreamReady(recognizer_, stream_)) {
