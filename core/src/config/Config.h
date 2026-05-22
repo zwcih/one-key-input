@@ -19,7 +19,6 @@ struct AsrConfig {
 struct PolishConfig {
     std::string    provider   = "openai-azure"; // openai-azure | openai | ollama | llamacpp | ...
     std::string    mode       = "tidy";          // raw | tidy | formal | code-comment | im-chat
-    double         temperature = 0.2;
     int            max_tokens  = 2000;
     bool           use_context = true;           // append focus context block to system prompt
     nlohmann::json provider_options = nlohmann::json::object();

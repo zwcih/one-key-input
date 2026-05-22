@@ -46,7 +46,6 @@ TEST(Config, LoadAllDefaultsFromEmptyJson) {
     EXPECT_TRUE(c.asr.punctuation);
     EXPECT_EQ(c.polish.provider, "openai-azure");
     EXPECT_EQ(c.polish.mode, "tidy");
-    EXPECT_DOUBLE_EQ(c.polish.temperature, 0.2);
     EXPECT_EQ(c.polish.max_tokens, 2000);
     EXPECT_TRUE(c.polish.use_context);
     EXPECT_EQ(c.inject.mode, "sendinput");
@@ -73,7 +72,6 @@ TEST(Config, LoadNewSchema) {
         {"polish", {
             {"provider", "openai"},
             {"mode", "formal"},
-            {"temperature", 0.7},
             {"max_tokens", 512},
             {"use_context", false},
             {"provider_options", {{"key", "sk-xyz"}, {"deployment", "gpt-4o"}}},
@@ -92,7 +90,6 @@ TEST(Config, LoadNewSchema) {
     EXPECT_EQ(c.asr.provider_options.value("region", ""), "eastus");
     EXPECT_EQ(c.polish.provider, "openai");
     EXPECT_EQ(c.polish.mode, "formal");
-    EXPECT_DOUBLE_EQ(c.polish.temperature, 0.7);
     EXPECT_EQ(c.polish.max_tokens, 512);
     EXPECT_FALSE(c.polish.use_context);
     EXPECT_EQ(c.polish.provider_options.value("key", ""), "sk-xyz");

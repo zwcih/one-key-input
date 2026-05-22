@@ -41,7 +41,6 @@ export type Dict = {
   polishKey: string;
   polishDeployment: string;
   polishApiVersion: string;
-  polishTemperature: string;
   polishUseContext: string;
   polishUseContextDesc: string;
 
@@ -117,7 +116,6 @@ export const zh: Dict = {
   polishKey: "API Key",
   polishDeployment: "Deployment",
   polishApiVersion: "API Version",
-  polishTemperature: "Temperature",
   polishUseContext: "上下文感知（推荐）",
   polishUseContextDesc:
     "按下热键时，将当前前台窗口的标题、应用名、光标周围文字等附加到润色 prompt，让结果更贴合场景。关闭后完全不抓取（节省 ~80-150ms 与少量 tokens）。",
@@ -197,7 +195,6 @@ export const en: Dict = {
   polishKey: "API Key",
   polishDeployment: "Deployment",
   polishApiVersion: "API Version",
-  polishTemperature: "Temperature",
   polishUseContext: "Context-aware polish (recommended)",
   polishUseContextDesc:
     "On hotkey press, attach the focused window's title, app name, and text around the caret to the polish prompt — makes the result fit the situation. Disabling skips capture entirely (saves ~80-150ms and a few tokens).",

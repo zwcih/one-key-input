@@ -177,7 +177,7 @@ std::wstring AsPromptBlock(const EffectiveContext& ctx) {
     if (!ctx.any()) return {};
     std::wostringstream o;
     o << L"以下是用户当前所在应用的环境上下文，仅作背景参考，"
-         L"用户的口述内容在 user 消息中，请优先按口述内容整理；"
+         L"用户的口述原文在 user 消息的 <transcript> 标签内，请只整理该原文；"
          L"如果上下文能帮你判断称呼/术语/语气，可以利用。\n";
     o << L"```\n";
     if (!ctx.app_label.empty())   o << L"app: "      << ctx.app_label   << L"\n";

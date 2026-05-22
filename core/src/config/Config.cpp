@@ -76,7 +76,6 @@ AppConfig Parse(const std::string& body) {
         const auto& p = j["polish"];
         GetOpt(p, "provider",    c.polish.provider);
         GetOpt(p, "mode",        c.polish.mode);
-        GetOpt(p, "temperature", c.polish.temperature);
         GetOpt(p, "max_tokens",  c.polish.max_tokens);
         GetOpt(p, "use_context", c.polish.use_context);
         if (p.contains("provider_options") && p["provider_options"].is_object()) {

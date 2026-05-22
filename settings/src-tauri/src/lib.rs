@@ -235,8 +235,7 @@ async fn probe_azure_openai(
     );
     let body = serde_json::json!({
         "messages": [{"role": "user", "content": "ping"}],
-        "max_tokens": 1,
-        "temperature": 0.0,
+        "max_completion_tokens": 16,
     });
     let res = http_client()
         .post(&url)
