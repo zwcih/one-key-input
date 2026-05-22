@@ -36,7 +36,7 @@ One-Key Input 想做到的是：
 
 - **按住即说，松开就到** —— 一个键完成全流程，零额外操作
 - **上下文感知** —— 这是核心差异点（见下）
-- **后端可换** —— ASR 和 LLM 都是接口化的：现在用 Azure Speech + Azure OpenAI；本地 Whisper + 本地 LLM 正在路上
+- **后端可换** —— ASR 和 LLM 都是接口化的：现在支持 Azure Speech、本地 sherpa-onnx Paraformer、Azure OpenAI 和 OpenAI；本地 LLM 正在路上
 - **跨平台目标** —— 当前是 Windows 原生，架构层抽象做了，Linux/macOS 后续
 
 ## 上下文感知 —— 这是什么意思
@@ -63,7 +63,7 @@ One-Key Input 想做到的是：
 
 从 [Releases](https://github.com/zwcih/one-key-input/releases) 下载 `OneKeyInput-x.y.z-portable.zip`，解压到任意目录。
 
-> 文件夹大小 ~25 MB，便携，无需安装。
+> 文件夹大小 ~55 MB（含 onnxruntime 等本地 ASR 运行时；不含可选的 Paraformer 模型，模型自下需另占 ~230 MB），便携，无需安装。
 
 > ⚠️ **首次运行：Windows 会拦一下**  
 > 因为 exe 没有代码签名证书（开源软件买不起也没必要），Windows SmartScreen 会弹一个蓝色警告框 "Windows protected your PC"。点 **More info（更多信息）→ Run anyway（仍要运行）** 即可。Defender 不会真把它当病毒——只是因为这个文件下载量还不够多、没建立信誉。  
@@ -127,10 +127,27 @@ One-Key Input 想做到的是：
 |---|---|---|
 | ASR (流式) | Azure Speech | ✅ 默认 |
 | ASR (REST) | Azure Speech | ✅ |
+| ASR (本地) | sherpa-onnx Paraformer | ✅ 离线可用 |
 | ASR (本地) | Whisper.cpp | 🚧 接口已留 |
 | 润色 | Azure OpenAI | ✅ 默认 |
 | 润色 | OpenAI | ✅ |
 | 润色 | 本地 LLM | 🚧 接口已留 |
+
+## 本地 ASR (sherpa-onnx Paraformer)
+
+不想用云端 ASR？设置 UI 里把「ASR 提供商」切到 **sherpa-onnx Paraformer (local)**，填入本地模型目录路径即可。运行时完全离线，不向任何服务器发送音频。
+
+底层模型是阿里达摩院的 **Paraformer 中英双语流式版**（`sherpa-onnx-streaming-paraformer-bilingual-zh-en`，int8 量化版本解压后约 230 MB），`sherpa-onnx` 只是 k2-fsa 做的 ONNX 推理 runtime，把达摩院公开的 PyTorch 权重重新打包成 ONNX。中文 SOTA 之一，CPU 实时可跑。
+
+1. 下载模型（任选其一）：
+   - **ModelScope（国内镜像，下载快）**：[pengzhendong/sherpa-onnx-streaming-paraformer-bilingual-zh-en](https://modelscope.cn/models/pengzhendong/sherpa-onnx-streaming-paraformer-bilingual-zh-en)
+   - **HuggingFace**：[csukuangfj/sherpa-onnx-streaming-paraformer-bilingual-zh-en](https://huggingface.co/csukuangfj/sherpa-onnx-streaming-paraformer-bilingual-zh-en)
+2. 解压到便携包目录下的 `models\paraformer-zh-streaming\`（默认路径，跟 `onekey-core.exe` 平级；也可改成任意绝对路径或 `%LOCALAPPDATA%` 等）。目录里应包含 `encoder.onnx`、`decoder.onnx`、`tokens.txt`（或对应的 `*.int8.onnx` 量化版本）
+3. 设置 UI 里指向该目录，点 **Test** 验证模型可加载
+4. 保存配置，按 F9 即可本地识别 —— 润色 LLM 仍走云端（润色想离线另起接线）
+
+> 必需的 `sherpa-onnx-c-api.dll` / `onnxruntime.dll` 已经随便携包一起打包，无需另装。
+> Paraformer 是非自回归架构，**不需要** `joiner.onnx`（那是 Transducer 类模型的组件）。
 
 ## 你需要准备的
 

@@ -31,6 +31,19 @@ export type Dict = {
   asrLanguage: string;
   asrAzureKey: string;
   asrAzureRegion: string;
+  asrProviderOptionAzureStream: string;
+  asrProviderOptionAzureRest: string;
+  asrProviderOptionSherpaParaformer: string;
+  asrSherpaModelDir: string;
+  asrSherpaModelDirHint: string;
+  asrSherpaBrowse: string;
+  asrSherpaThreads: string;
+  asrSherpaThreadsHint: string;
+  asrSherpaTest: string;
+  asrSherpaTesting: string;
+  asrSherpaTestOk: string;
+  asrSherpaTestFail: string;
+  asrSherpaSetupHelp: string;
 
   polishProvider: string;
   polishMode: string;
@@ -106,6 +119,21 @@ export const zh: Dict = {
   asrLanguage: "语言",
   asrAzureKey: "Azure Speech Key",
   asrAzureRegion: "Azure Region",
+  asrProviderOptionAzureStream: "Azure Speech 流式（云端）",
+  asrProviderOptionAzureRest: "Azure Speech REST（云端）",
+  asrProviderOptionSherpaParaformer: "Sherpa Paraformer（本地）",
+  asrSherpaModelDir: "模型目录",
+  asrSherpaModelDirHint:
+    "需包含 encoder.onnx / decoder.onnx / tokens.txt。支持 %LOCALAPPDATA% 等环境变量。",
+  asrSherpaBrowse: "浏览…",
+  asrSherpaThreads: "线程数",
+  asrSherpaThreadsHint: "ONNX Runtime 线程数；2 适合大多数台式机/笔记本。",
+  asrSherpaTest: "测试加载",
+  asrSherpaTesting: "加载中…",
+  asrSherpaTestOk: "已加载，耗时 ",
+  asrSherpaTestFail: "加载失败：",
+  asrSherpaSetupHelp:
+    "首次使用：从 ModelScope（国内镜像，下载快）或 HuggingFace 下载 sherpa-onnx-streaming-paraformer-bilingual-zh-en（达摩院 Paraformer 中英流式版，int8 解压后约 230 MB），把里面的 encoder.onnx / decoder.onnx / tokens.txt 放进上方目录即可。Paraformer 不需要 joiner.onnx。",
 
   polishProvider: "服务提供方",
   polishMode: "默认模式",
@@ -185,6 +213,21 @@ export const en: Dict = {
   asrLanguage: "Language",
   asrAzureKey: "Azure Speech Key",
   asrAzureRegion: "Azure Region",
+  asrProviderOptionAzureStream: "Azure Speech streaming (cloud)",
+  asrProviderOptionAzureRest: "Azure Speech REST (cloud)",
+  asrProviderOptionSherpaParaformer: "Sherpa Paraformer (local)",
+  asrSherpaModelDir: "Model directory",
+  asrSherpaModelDirHint:
+    "Must contain encoder.onnx / decoder.onnx / tokens.txt. Environment variables like %LOCALAPPDATA% are expanded.",
+  asrSherpaBrowse: "Browse…",
+  asrSherpaThreads: "Threads",
+  asrSherpaThreadsHint: "ONNX Runtime threads; 2 is fine for most laptops/desktops.",
+  asrSherpaTest: "Test load",
+  asrSherpaTesting: "Loading…",
+  asrSherpaTestOk: "Loaded in ",
+  asrSherpaTestFail: "Load failed: ",
+  asrSherpaSetupHelp:
+    "First-time setup: download sherpa-onnx-streaming-paraformer-bilingual-zh-en (Alibaba DAMO's bilingual streaming Paraformer; int8 unpacks to ~230 MB) from ModelScope (China mirror) or HuggingFace, and drop encoder.onnx / decoder.onnx / tokens.txt into the directory above. Paraformer does not need joiner.onnx.",
 
   polishProvider: "Provider",
   polishMode: "Default mode",

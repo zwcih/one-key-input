@@ -10,6 +10,10 @@ export interface AppConfig {
       key?: string;
       region?: string;
       endpoint?: string;
+      // sherpa-paraformer (local):
+      model_dir?: string;
+      num_threads?: number;
+      provider?: string;
       [k: string]: unknown;
     };
   };
@@ -84,6 +88,11 @@ export function isFirstRun(c: AppConfig): boolean {
   if (c.asr.provider.startsWith("azure")) {
     if (azurePlaceholder(c.asr.provider_options.key as string | undefined))
       return true;
+  }
+  // sherpa-paraformer (local ASR) requires a non-empty model_dir.
+  if (c.asr.provider === "sherpa-paraformer") {
+    const dir = c.asr.provider_options.model_dir as string | undefined;
+    if (!dir) return true;
   }
   if (c.polish.provider.startsWith("openai")) {
     if (azurePlaceholder(c.polish.provider_options.key as string | undefined))

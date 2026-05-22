@@ -36,6 +36,22 @@ TEST(AsrFactory, WhisperLocalNotImplemented) {
     EXPECT_THROW({ (void)CreateAsrEngine(cfg); }, std::runtime_error);
 }
 
+TEST(AsrFactory, SherpaParaformerMissingModelDirThrows) {
+    AsrConfig cfg;
+    cfg.provider = "sherpa-paraformer";
+    // provider_options empty: model_dir missing should fail fast at ctor.
+    EXPECT_THROW({ (void)CreateAsrEngine(cfg); }, std::runtime_error);
+}
+
+TEST(AsrFactory, SherpaParaformerNonexistentDirThrows) {
+    AsrConfig cfg;
+    cfg.provider = "sherpa-paraformer";
+    cfg.provider_options = {
+        {"model_dir", "C:/this/path/should/never/exist/onekey-sherpa-test"},
+    };
+    EXPECT_THROW({ (void)CreateAsrEngine(cfg); }, std::runtime_error);
+}
+
 TEST(AsrFactory, UnknownProviderThrows) {
     AsrConfig cfg;
     cfg.provider = "wat-no-such";
