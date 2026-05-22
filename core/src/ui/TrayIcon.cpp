@@ -1,4 +1,5 @@
 #include "TrayIcon.h"
+#include "IconFactory.h"
 #include "../../resources/resource.h"
 
 #include <spdlog/spdlog.h>
@@ -54,18 +55,21 @@ bool TrayIcon::Create() {
 
     wm_taskbar_created_ = ::RegisterWindowMessageW(L"TaskbarCreated");
 
-    // Load the embedded application icon at the OS small-icon size for
-    // a crisp render in the system tray.
+    // Tray icon size depends on DPI; query the system small-icon size and
+    // render a fresh tinted mic at that resolution. The factory icon is
+    // owned by us (no LR_SHARED) — Destroy() must call DestroyIcon.
     int small_w = ::GetSystemMetrics(SM_CXSMICON);
     int small_h = ::GetSystemMetrics(SM_CYSMICON);
     int sz = std::max({16, small_w, small_h});
-    hicon_ = static_cast<HICON>(::LoadImageW(hinst,
-                                             MAKEINTRESOURCEW(IDI_ONEKEY_TRAY),
-                                             IMAGE_ICON, sz, sz,
-                                             LR_DEFAULTCOLOR | LR_SHARED));
+    hicon_ = CreateMicIcon(phase_, paused_, sz);
+    hicon_owned_ = (hicon_ != nullptr);
     if (!hicon_) {
-        // Fall back to a default so the tray entry still appears.
-        hicon_ = ::LoadIconW(nullptr, IDI_APPLICATION);
+        // Fall back to the embedded resource so the tray entry still appears.
+        hicon_ = static_cast<HICON>(::LoadImageW(hinst,
+                                                 MAKEINTRESOURCEW(IDI_ONEKEY_TRAY),
+                                                 IMAGE_ICON, sz, sz,
+                                                 LR_DEFAULTCOLOR | LR_SHARED));
+        if (!hicon_) hicon_ = ::LoadIconW(nullptr, IDI_APPLICATION);
     }
 
     NOTIFYICONDATAW nid{};
@@ -96,9 +100,14 @@ void TrayIcon::Destroy() {
         ::Shell_NotifyIconW(NIM_DELETE, &nid);
         added_ = false;
     }
-    // hicon_ was loaded with LR_SHARED — do not DestroyIcon it; the system
-    // owns the handle and reuses it across callers.
+    // Free the icon only when we allocated it ourselves (CreateMicIcon).
+    // LR_SHARED + LoadIcon(IDI_APPLICATION) hand back system-owned handles
+    // that DestroyIcon would log an error on.
+    if (hicon_ && hicon_owned_) {
+        ::DestroyIcon(hicon_);
+    }
     hicon_ = nullptr;
+    hicon_owned_ = false;
     if (hwnd_) {
         ::DestroyWindow(hwnd_);
         hwnd_ = nullptr;
@@ -141,8 +150,29 @@ void TrayIcon::UpdateIcon() {
 }
 
 void TrayIcon::Redraw() {
-    // No-op: the tray icon is the static embedded asset. Phase changes are
-    // communicated via the tooltip text alone.
+    if (!added_) return;
+    // Build a fresh tinted icon for the current phase + pause state and
+    // swap it into the tray entry. We always allocate a new handle so the
+    // outgoing one stays valid for any in-flight shell paint.
+    int small_w = ::GetSystemMetrics(SM_CXSMICON);
+    int small_h = ::GetSystemMetrics(SM_CYSMICON);
+    int sz = std::max({16, small_w, small_h});
+    HICON next = CreateMicIcon(phase_, paused_, sz);
+    if (!next) return;  // keep the old icon rather than show a blank entry
+
+    NOTIFYICONDATAW nid{};
+    nid.cbSize = sizeof(nid);
+    nid.hWnd   = hwnd_;
+    nid.uID    = TRAY_UID;
+    nid.uFlags = NIF_ICON;
+    nid.hIcon  = next;
+    ::Shell_NotifyIconW(NIM_MODIFY, &nid);
+
+    if (hicon_ && hicon_owned_) {
+        ::DestroyIcon(hicon_);
+    }
+    hicon_ = next;
+    hicon_owned_ = true;
 }
 
 void TrayIcon::EmitToast() {

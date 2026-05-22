@@ -26,6 +26,15 @@ export type Dict = {
   hotkeyKey: string;
   hotkeyHoldMs: string;
   hotkeyHoldHint: string;
+  hotkeyBehavior: string;
+  hotkeyBehaviorPushToTalk: string;
+  hotkeyBehaviorToggle: string;
+  hotkeyBehaviorSmart: string;
+  hotkeyBehaviorHint: string;
+  hotkeySmartThresholdMs: string;
+  hotkeySmartThresholdHint: string;
+  hotkeyMaxDurationMin: string;
+  hotkeyMaxDurationHint: string;
 
   asrProvider: string;
   asrLanguage: string;
@@ -114,6 +123,16 @@ export const zh: Dict = {
   hotkeyKey: "快捷键",
   hotkeyHoldMs: "最短按住时间 (ms)",
   hotkeyHoldHint: "防误触；少于这个时长视为误按。",
+  hotkeyBehavior: "按键行为",
+  hotkeyBehaviorPushToTalk: "按住对讲（Push-to-Talk）",
+  hotkeyBehaviorToggle: "切换（按一下开 / 再按一下关）",
+  hotkeyBehaviorSmart: "智能（短按切换 / 长按对讲）",
+  hotkeyBehaviorHint:
+    "智能模式短按（< 阈值）会进入「持续录音」，再按一下或按 Esc 结束；长按则与按住对讲一致。切换/智能模式同时作用于 F8 翻译键。",
+  hotkeySmartThresholdMs: "短按/长按阈值 (ms)",
+  hotkeySmartThresholdHint: "智能模式判定短按的上限，建议 400ms。",
+  hotkeyMaxDurationMin: "最长连续录音（分钟）",
+  hotkeyMaxDurationHint: "防止忘关麦克风：切换 / 智能持续录音超过此时长会自动结束。Esc 可随时强制结束。",
 
   asrProvider: "服务提供方",
   asrLanguage: "语言",
@@ -208,6 +227,17 @@ export const en: Dict = {
   hotkeyKey: "Key",
   hotkeyHoldMs: "Min hold (ms)",
   hotkeyHoldHint: "Anti-mistap: shorter taps are ignored.",
+  hotkeyBehavior: "Press behavior",
+  hotkeyBehaviorPushToTalk: "Push-to-talk (hold to record)",
+  hotkeyBehaviorToggle: "Toggle (tap to start, tap to stop)",
+  hotkeyBehaviorSmart: "Smart (short tap = toggle, long press = push-to-talk)",
+  hotkeyBehaviorHint:
+    "Smart mode: short taps below the threshold enter hands-free recording (stop with another tap or Esc); long presses behave like push-to-talk. The same setting also drives the F8 translation hotkey.",
+  hotkeySmartThresholdMs: "Short/long press threshold (ms)",
+  hotkeySmartThresholdHint: "Smart-mode cutoff for short taps. 400ms is recommended.",
+  hotkeyMaxDurationMin: "Max recording length (minutes)",
+  hotkeyMaxDurationHint:
+    "Safety stop for toggle / smart-sticky: a recording running longer than this is auto-stopped so a forgotten mic can't keep listening. Esc always force-stops too.",
 
   asrProvider: "Provider",
   asrLanguage: "Language",

@@ -32,6 +32,11 @@ public:
     std::function<void()> on_press_secondary;
     std::function<void()> on_release_secondary;
 
+    // Esc was pressed anywhere on the system. Fired so the session can
+    // force-stop a sticky / toggle-mode recording. We do NOT swallow Esc
+    // here — other apps still see it normally.
+    std::function<void()> on_escape;
+
     // Called from the low-level keyboard hook. Public only so the C-style
     // hook callback can dispatch into it; treat as internal.
     void OnHookEvent(unsigned long wParam, const void* kbll);

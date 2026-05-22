@@ -25,7 +25,13 @@
   },
   "hotkey": {
     "key": "f9",
-    "min_hold_ms": 250
+    "min_hold_ms": 250,
+    "_behavior_choices": ["push_to_talk", "toggle", "smart"],
+    "behavior": "smart",
+    "smart_threshold_ms": 400,
+    "max_duration_ms": 300000,
+    "_smart_threshold_hint": "Smart mode: presses shorter than this are 'short taps' (enter sticky/toggle); longer presses act as push-to-talk.",
+    "_max_duration_hint": "Safety stop for toggle / smart-sticky in ms (5min default). 0 disables. Esc always force-stops."
   },
   "sound": {
     "enabled": true

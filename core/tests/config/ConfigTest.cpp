@@ -51,6 +51,9 @@ TEST(Config, LoadAllDefaultsFromEmptyJson) {
     EXPECT_EQ(c.inject.mode, "sendinput");
     EXPECT_EQ(c.hotkey.key, "f9");
     EXPECT_EQ(c.hotkey.min_hold_ms, 250);
+    EXPECT_EQ(c.hotkey.behavior, "push_to_talk");
+    EXPECT_EQ(c.hotkey.smart_threshold_ms, 400);
+    EXPECT_EQ(c.hotkey.max_duration_ms, 300000);
     EXPECT_TRUE(c.sound.enabled);
     EXPECT_TRUE(c.autostart.enabled);
     // Translate defaults: F8, English target, smart_target off.
@@ -284,4 +287,46 @@ TEST(Config, LoadTranslatePartialKeepsDefaults) {
     EXPECT_EQ(c.translate.hotkey, "f8");
     EXPECT_TRUE(c.translate.enabled);
     EXPECT_FALSE(c.translate.smart_target);
+}
+
+TEST(Config, HotkeyBehaviorDefaultsToPushToTalkForLegacyConfig) {
+    // Legacy config without the `behavior` field must keep push_to_talk
+    // semantics so existing users see zero regression.
+    json j = { {"hotkey", {{"key", "f9"}, {"min_hold_ms", 250}}} };
+    auto p = WriteTempConfig(j.dump(), "hk-legacy");
+    AppConfig c = Load(p);
+    EXPECT_EQ(c.hotkey.behavior, "push_to_talk");
+    EXPECT_EQ(c.hotkey.smart_threshold_ms, 400);
+    EXPECT_EQ(c.hotkey.max_duration_ms, 300000);
+}
+
+TEST(Config, HotkeyBehaviorExplicitValuesLoad) {
+    json j = { {"hotkey", {
+        {"key", "f9"},
+        {"min_hold_ms", 250},
+        {"behavior", "smart"},
+        {"smart_threshold_ms", 300},
+        {"max_duration_ms", 60000},
+    }}};
+    auto p = WriteTempConfig(j.dump(), "hk-smart");
+    AppConfig c = Load(p);
+    EXPECT_EQ(c.hotkey.behavior, "smart");
+    EXPECT_EQ(c.hotkey.smart_threshold_ms, 300);
+    EXPECT_EQ(c.hotkey.max_duration_ms, 60000);
+}
+
+TEST(Config, HotkeyBehaviorUnknownStringFallsBackToPushToTalk) {
+    // A typo or stale value shouldn't brick the hotkey — we normalize to
+    // push_to_talk and log a warning.
+    json j = { {"hotkey", {{"behavior", "pushtotalk"}}} };  // missing underscore
+    auto p = WriteTempConfig(j.dump(), "hk-bad");
+    AppConfig c = Load(p);
+    EXPECT_EQ(c.hotkey.behavior, "push_to_talk");
+}
+
+TEST(Config, HotkeyBehaviorAcceptsToggle) {
+    json j = { {"hotkey", {{"behavior", "toggle"}}} };
+    auto p = WriteTempConfig(j.dump(), "hk-toggle");
+    AppConfig c = Load(p);
+    EXPECT_EQ(c.hotkey.behavior, "toggle");
 }

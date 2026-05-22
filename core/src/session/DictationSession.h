@@ -5,12 +5,15 @@
 #include "../config/Config.h"
 #include "../focus/FocusContext.h"
 #include "EventBus.h"
+#include "HotkeyBehaviorMachine.h"
 
 #include <atomic>
+#include <condition_variable>
 #include <future>
 #include <memory>
 #include <mutex>
 #include <string>
+#include <thread>
 #include <chrono>
 
 namespace onekey::audio { class WasapiCapture; }
@@ -18,7 +21,14 @@ namespace onekey::audio { class WasapiCapture; }
 namespace onekey::session {
 
 // Owns the full record→recognize→polish→inject lifecycle.
-// Press hotkey -> StartRecording(); Release -> StopAndProcess().
+//
+// Two ways to drive it:
+//   - High-level press/release/escape dispatch via the embedded
+//     HotkeyBehaviorMachine (push_to_talk / toggle / smart). This is the
+//     path the Application wires the OS hotkey hook through.
+//   - Low-level StartRecording/StopAndProcess for tests and for any caller
+//     that doesn't want behavior interpretation.
+//
 // All public methods are safe to call from the hotkey thread.
 //
 // Phase changes are broadcast through the EventBus passed in; UI components
@@ -32,12 +42,25 @@ public:
                      inject::InjectorStrategy* injector,
                      audio::WasapiCapture* capture,
                      EventBus* bus);
+    ~DictationSession();
 
     enum class Mode {
         Polish,     // F9 — run polish.mode through OpenAIPolisher
         Translate,  // F8 — run translation prompt with translate.target_language
     };
 
+    // Behavior-aware hotkey dispatch. The session interprets the configured
+    // hotkey.behavior (push_to_talk / toggle / smart) and decides whether
+    // to start/stop/promote-to-sticky. Both F9 and F8 share the same
+    // behavior config — the only difference is `mode`.
+    void OnHotkeyPress(Mode mode = Mode::Polish);
+    void OnHotkeyRelease();
+
+    // Force-stop a sticky / toggle-mode recording. No-op when idle.
+    void OnEscape();
+
+    // Lower-level entry points. Used by callers (e.g. tests) that don't
+    // want behavior interpretation.
     void StartRecording(Mode mode = Mode::Polish);
     void StopAndProcess();
 
@@ -46,6 +69,8 @@ public:
 private:
     void DoRecognizeAndPolish();
     void SetPhase(Phase p, std::wstring detail = {});
+    void StartWatchdog();
+    void StopWatchdog();
 
     const config::AppConfig& cfg_;
     asr::IAsrEngine*           asr_;
@@ -53,6 +78,9 @@ private:
     inject::InjectorStrategy*  injector_;
     audio::WasapiCapture*      capture_;
     EventBus*                  bus_;
+
+    HotkeyBehaviorMachine      behavior_machine_;
+    std::mutex                 machine_mu_;  // serializes hotkey dispatch
 
     std::atomic<Phase>          phase_{Phase::Idle};
     std::mutex                  mu_;
@@ -70,6 +98,14 @@ private:
     // the user is dictating so the UIA walk overlaps the recording window
     // — by the time we need it, the future is typically already ready.
     std::future<focus::ContextSnapshot> focus_future_;
+
+    // Max-duration watchdog. Only spun up while a sticky/toggle recording is
+    // live so it doesn't sit on a thread idle when push-to-talk is in use.
+    std::thread             watchdog_;
+    std::condition_variable watchdog_cv_;
+    std::mutex              watchdog_mu_;
+    bool                    watchdog_stop_ = false;
 };
 
 }  // namespace onekey::session
+

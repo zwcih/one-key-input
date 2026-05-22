@@ -66,26 +66,36 @@ bool Application::Init() {
         hotkey_ = std::make_unique<hotkey::HotkeyManager>();
         hotkey_->on_press   = [this]{
             if (paused_.load()) return;
-            session_->StartRecording(session::DictationSession::Mode::Polish);
+            session_->OnHotkeyPress(session::DictationSession::Mode::Polish);
         };
         hotkey_->on_release = [this]{
             if (paused_.load()) return;
-            session_->StopAndProcess();
+            session_->OnHotkeyRelease();
+        };
+        // Esc anywhere on the system force-stops a sticky/toggle recording.
+        // Hook stays a no-op when nothing is recording, so other apps'
+        // Esc semantics are not affected (we never swallow the event).
+        hotkey_->on_escape = [this]{
+            if (paused_.load()) return;
+            session_->OnEscape();
         };
         if (!hotkey_->Install(cfg_.hotkey.key, cfg_.hotkey.min_hold_ms)) {
             spdlog::error("hotkey install failed");
             return false;
         }
+        spdlog::info("[hotkey] behavior='{}' smart_threshold={}ms max_duration={}ms",
+                     cfg_.hotkey.behavior, cfg_.hotkey.smart_threshold_ms,
+                     cfg_.hotkey.max_duration_ms);
         // Translation hotkey (F8 by default). Optional — if it fails we
         // log + continue: polish keeps working.
         if (cfg_.translate.enabled) {
             hotkey_->on_press_secondary = [this]{
                 if (paused_.load()) return;
-                session_->StartRecording(session::DictationSession::Mode::Translate);
+                session_->OnHotkeyPress(session::DictationSession::Mode::Translate);
             };
             hotkey_->on_release_secondary = [this]{
                 if (paused_.load()) return;
-                session_->StopAndProcess();
+                session_->OnHotkeyRelease();
             };
             if (!hotkey_->InstallSecondary(cfg_.translate.hotkey,
                                            cfg_.translate.min_hold_ms)) {

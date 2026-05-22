@@ -102,6 +102,43 @@ describe("<App />", () => {
     });
   });
 
+  it("renders the hotkey behavior radio with smart selected by default", async () => {
+    render(<App />);
+    await waitFor(() => screen.getByRole("button", { name: "中文" }));
+    // Three radios with name="hk-behavior"; smart is checked by default
+    // because defaultConfig() seeds new installs as smart.
+    const radios = document.querySelectorAll<HTMLInputElement>(
+      'input[type="radio"][name="hk-behavior"]',
+    );
+    expect(radios.length).toBe(3);
+    const checked = Array.from(radios).filter((r) => r.checked);
+    expect(checked.length).toBe(1);
+    // Smart shows both the threshold + max-duration helper fields.
+    expect(document.getElementById("hk-smart-threshold")).not.toBeNull();
+    expect(document.getElementById("hk-max-duration")).not.toBeNull();
+  });
+
+  it("hides smart/toggle helper fields when push_to_talk is selected", async () => {
+    invokeMock.mockImplementation((cmd: string) => {
+      if (cmd === "load_config") {
+        const c = defaultConfig();
+        c.asr.provider_options.key = "real-key";
+        c.polish.provider_options.key = "real-oai-key";
+        c.hotkey.behavior = "push_to_talk";
+        return Promise.resolve(c);
+      }
+      if (cmd === "save_config") return Promise.resolve();
+      if (cmd === "test_credentials") return Promise.resolve([]);
+      if (cmd === "start_core") return Promise.resolve();
+      return Promise.reject(new Error("unmocked invoke: " + cmd));
+    });
+    render(<App />);
+    await waitFor(() => screen.getByRole("button", { name: "中文" }));
+    // push_to_talk: neither helper field renders (no max-duration nag, no threshold).
+    expect(document.getElementById("hk-smart-threshold")).toBeNull();
+    expect(document.getElementById("hk-max-duration")).toBeNull();
+  });
+
   it("renders the Translation Mode section with default F8 / English", async () => {
     render(<App />);
     // Wait for the form to appear, then assert the new Translate group is present.

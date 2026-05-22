@@ -31,6 +31,19 @@ struct InjectConfig {
 struct HotkeyConfig {
     std::string key         = "f9";
     int         min_hold_ms = 250;
+
+    // Recording behavior. Decides how a key press/release translates into
+    // start/stop of the dictation session:
+    //   - "push_to_talk": legacy — hold to record, release to stop.
+    //   - "toggle"      : tap once to start, tap again to stop.
+    //   - "smart"       : short press (< smart_threshold_ms) = toggle,
+    //                     long press (>= smart_threshold_ms) = push-to-talk.
+    // The default here is intentionally the legacy behavior so any config
+    // that pre-dates this field gets zero-regression. The Settings UI seeds
+    // new installs with "smart".
+    std::string behavior          = "push_to_talk";
+    int         smart_threshold_ms = 400;     // smart mode short/long split
+    int         max_duration_ms    = 300000;  // toggle / sticky safety stop (5min)
 };
 
 struct SoundConfig {

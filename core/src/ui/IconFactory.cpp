@@ -17,14 +17,15 @@ constexpr Rgba kBlack        {18, 18, 24, 255};
 Rgba TintFor(session::Phase phase) {
     using session::Phase;
     switch (phase) {
-        case Phase::Recording:   return Rgba{ 60,  60, 220, 255}; // red (BGR)
-        case Phase::Recognizing: return Rgba{ 60, 180, 240, 255}; // amber
-        case Phase::Polishing:   return Rgba{240, 160,  80, 255}; // blue
-        case Phase::Injecting:   return Rgba{120, 200,  80, 255}; // green
-        case Phase::Error:       return Rgba{ 60,  60, 220, 255}; // red
+        case Phase::Recording:        return Rgba{ 60,  60, 220, 255}; // red (BGR)
+        case Phase::StickyRecording:  return Rgba{ 80, 120, 240, 255}; // warm red — sticky/toggle
+        case Phase::Recognizing:      return Rgba{ 60, 180, 240, 255}; // amber
+        case Phase::Polishing:        return Rgba{240, 160,  80, 255}; // blue
+        case Phase::Injecting:        return Rgba{120, 200,  80, 255}; // green
+        case Phase::Error:            return Rgba{ 60,  60, 220, 255}; // red
         case Phase::Done:
         case Phase::Idle:
-        default:                 return Rgba{180, 180, 180, 255}; // grey
+        default:                      return Rgba{180, 180, 180, 255}; // grey
     }
 }
 

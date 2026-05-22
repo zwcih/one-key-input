@@ -10,13 +10,14 @@ namespace onekey::session {
 // (tray icon tooltip, cursor overlay animation, etc.) without knowing
 // anything about ASR / polish / inject internals.
 enum class Phase {
-    Idle,         // nothing happening
-    Recording,    // mic is open, user holding hotkey
-    Recognizing,  // hotkey released; ASR finalizing
-    Polishing,    // ASR done; LLM streaming
-    Injecting,    // LLM tokens arriving and being typed
-    Done,         // injection complete; about to return to Idle
-    Error         // something failed; will return to Idle
+    Idle,             // nothing happening
+    Recording,        // mic is open, user holding hotkey
+    StickyRecording,  // mic is open in toggle/smart-sticky mode (no key held)
+    Recognizing,      // hotkey released; ASR finalizing
+    Polishing,        // ASR done; LLM streaming
+    Injecting,        // LLM tokens arriving and being typed
+    Done,             // injection complete; about to return to Idle
+    Error             // something failed; will return to Idle
 };
 
 struct PhaseEvent {

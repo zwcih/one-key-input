@@ -87,8 +87,20 @@ AppConfig Parse(const std::string& body) {
     }
     if (j.contains("hotkey") && j["hotkey"].is_object()) {
         const auto& h = j["hotkey"];
-        GetOpt(h, "key",         c.hotkey.key);
-        GetOpt(h, "min_hold_ms", c.hotkey.min_hold_ms);
+        GetOpt(h, "key",                c.hotkey.key);
+        GetOpt(h, "min_hold_ms",        c.hotkey.min_hold_ms);
+        GetOpt(h, "behavior",           c.hotkey.behavior);
+        GetOpt(h, "smart_threshold_ms", c.hotkey.smart_threshold_ms);
+        GetOpt(h, "max_duration_ms",    c.hotkey.max_duration_ms);
+        // Normalize: any unknown behavior string falls back to push-to-talk
+        // so a typo in config.json can't silently brick the hotkey.
+        if (c.hotkey.behavior != "push_to_talk" &&
+            c.hotkey.behavior != "toggle" &&
+            c.hotkey.behavior != "smart") {
+            spdlog::warn("[config] unknown hotkey.behavior '{}' — falling back to push_to_talk",
+                         c.hotkey.behavior);
+            c.hotkey.behavior = "push_to_talk";
+        }
     }
     if (j.contains("sound") && j["sound"].is_object()) {
         GetOpt(j["sound"], "enabled", c.sound.enabled);

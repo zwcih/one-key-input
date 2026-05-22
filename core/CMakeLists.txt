@@ -52,6 +52,7 @@ set(ONEKEY_CORE_OBJ_SOURCES
     src/inject/SendInputUnicodeInjector.cpp
     src/session/DictationSession.cpp
     src/session/EventBus.cpp
+    src/session/HotkeyBehaviorMachine.cpp
     src/focus/FocusContext.cpp
     src/focus/ContextExtractor.cpp
     src/ui/TrayIcon.cpp
