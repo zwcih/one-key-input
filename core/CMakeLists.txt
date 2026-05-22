@@ -43,6 +43,7 @@ set(ONEKEY_CORE_OBJ_SOURCES
     src/asr/IAsrEngine.cpp
     src/asr/AzureRestAsrEngine.cpp
     src/asr/AzureStreamAsrEngine.cpp
+    src/asr/SherpaAsrEngine.cpp
     src/polish/PolisherFactory.cpp
     src/polish/OpenAIPolisher.cpp
     src/polish/TranslationPrompt.cpp
@@ -68,6 +69,7 @@ target_link_libraries(onekey-core-obj PUBLIC
     fmt::fmt
     nlohmann_json::nlohmann_json
     WIL::WIL
+    sherpa::sherpa
     ${OK_SPEECH_SDK_LIB}
     # Win32 SDK
     Avrt
@@ -127,6 +129,17 @@ foreach(_dll
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${OK_SPEECH_SDK_DLL_DIR}/${_dll}"
             "$<TARGET_FILE_DIR:onekey-core>/${_dll}"
+        VERBATIM
+    )
+endforeach()
+
+# Sherpa-onnx runtime DLLs (sherpa + onnxruntime). Required at exe load time
+# because we link against the C API import library.
+foreach(_dll ${SHERPA_ONNX_RUNTIME_DLLS})
+    add_custom_command(TARGET onekey-core POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${_dll}"
+            "$<TARGET_FILE_DIR:onekey-core>/"
         VERBATIM
     )
 endforeach()

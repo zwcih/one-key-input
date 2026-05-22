@@ -7,6 +7,7 @@ set(ONEKEY_CORE_TEST_SOURCES
     config/ConfigTest.cpp
     session/EventBusTest.cpp
     asr/AsrFactoryTest.cpp
+    asr/SherpaAsrEngineTest.cpp
     polish/PolisherFactoryTest.cpp
     polish/TranslationPromptTest.cpp
     inject/InjectorStrategyTest.cpp
@@ -41,6 +42,19 @@ foreach(_dll
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${OK_SPEECH_SDK_DLL_DIR}/${_dll}"
             "$<TARGET_FILE_DIR:onekey-core-tests>/${_dll}"
+        VERBATIM
+    )
+endforeach()
+
+# Same for sherpa-onnx + onnxruntime — SherpaAsrEngine constructor doesn't
+# touch the SDK (it only validates config paths) but the import library is
+# still in the link, so the loader will resolve sherpa-onnx-c-api.dll at exe
+# startup.
+foreach(_dll ${SHERPA_ONNX_RUNTIME_DLLS})
+    add_custom_command(TARGET onekey-core-tests POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${_dll}"
+            "$<TARGET_FILE_DIR:onekey-core-tests>/"
         VERBATIM
     )
 endforeach()

@@ -36,7 +36,7 @@ One-Key Input tries to be:
 
 - **Hold-to-talk, release-to-type** — one key, zero extra steps
 - **Context-aware** — the core differentiator (see below)
-- **Backend-pluggable** — ASR and LLM are interfaces. Today: Azure Speech + Azure OpenAI. On the roadmap: local Whisper, local LLM
+- **Backend-pluggable** — ASR and LLM are interfaces. Today: Azure Speech, local sherpa-onnx Paraformer, Azure OpenAI, OpenAI. On the roadmap: local LLM
 - **Cross-platform ambition** — currently Windows-native, but the abstraction layers exist for Linux/macOS later
 
 ## Context-aware — what that actually means
@@ -63,7 +63,7 @@ You say the same sentence. What changes is that the LLM polishing it actually **
 
 Grab `OneKeyInput-x.y.z-portable.zip` from the [Releases](https://github.com/zwcih/one-key-input/releases) page. Extract anywhere.
 
-> About 25 MB. Portable, no installer.
+> About 55 MB (includes onnxruntime and the local-ASR runtime; excludes the optional Paraformer model, which adds ~230 MB if you choose to install it). Portable, no installer.
 
 > ⚠️ **First launch: Windows will block it once**  
 > The exe isn't code-signed (signing certs cost $200+/yr — not worth it for an unpaid open-source v0.1), so SmartScreen pops a blue **"Windows protected your PC"** dialog. Click **More info → Run anyway**. This is not malware detection — Windows just hasn't seen the file enough times to trust it yet.  
@@ -127,10 +127,27 @@ Or edit it from the Settings UI's "Translation Mode" section.
 |---|---|---|
 | ASR (streaming) | Azure Speech | ✅ default |
 | ASR (REST) | Azure Speech | ✅ |
+| ASR (local) | sherpa-onnx Paraformer | ✅ offline-ready |
 | ASR (local) | Whisper.cpp | 🚧 interface ready |
 | Polish | Azure OpenAI | ✅ default |
 | Polish | OpenAI | ✅ |
 | Polish | local LLM | 🚧 interface ready |
+
+## Local ASR (sherpa-onnx Paraformer)
+
+Don't want cloud ASR? In the Settings UI switch **ASR provider** to **sherpa-onnx Paraformer (local)** and point it at a local model directory. Runtime is fully offline — no audio leaves the machine.
+
+The underlying model is **Alibaba DAMO Academy's bilingual streaming Paraformer** (`sherpa-onnx-streaming-paraformer-bilingual-zh-en`; the int8-quantized version unpacks to about 230 MB on disk). `sherpa-onnx` is just the k2-fsa ONNX inference runtime that repackages DAMO's public PyTorch weights into ONNX. State-of-the-art for Mandarin, runs in real time on CPU.
+
+1. Download the model (either source works):
+   - **ModelScope** (China mirror, fast inside China): [pengzhendong/sherpa-onnx-streaming-paraformer-bilingual-zh-en](https://modelscope.cn/models/pengzhendong/sherpa-onnx-streaming-paraformer-bilingual-zh-en)
+   - **HuggingFace**: [csukuangfj/sherpa-onnx-streaming-paraformer-bilingual-zh-en](https://huggingface.co/csukuangfj/sherpa-onnx-streaming-paraformer-bilingual-zh-en)
+2. Extract to `models\paraformer-zh-streaming\` inside the portable bundle (default; sits next to `onekey-core.exe`; you can also use any absolute path or `%LOCALAPPDATA%`-style env var). The directory must contain `encoder.onnx`, `decoder.onnx`, `tokens.txt` (or the matching `*.int8.onnx` quantized variants)
+3. Point the Settings UI at that directory and hit **Test** to verify the model loads
+4. Save and press F9 — recognition runs locally. The polish LLM still goes to the cloud (offline polish is a separate wire-up).
+
+> The required `sherpa-onnx-c-api.dll` / `onnxruntime.dll` ship inside the portable bundle. Nothing else to install.
+> Paraformer is non-autoregressive — it does **not** need `joiner.onnx` (that belongs to Transducer-style models).
 
 ## What you need
 

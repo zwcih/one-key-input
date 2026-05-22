@@ -1,6 +1,7 @@
 #include "AsrFactory.h"
 #include "AzureRestAsrEngine.h"
 #include "AzureStreamAsrEngine.h"
+#include "SherpaAsrEngine.h"
 #include "../util/Strings.h"
 
 #include <spdlog/spdlog.h>
@@ -15,6 +16,9 @@ std::unique_ptr<IAsrEngine> CreateAsrEngine(const config::AsrConfig& cfg) {
     }
     if (cfg.provider == "azure-stream") {
         return std::make_unique<AzureStreamAsrEngine>(cfg);
+    }
+    if (cfg.provider == "sherpa-paraformer") {
+        return std::make_unique<SherpaAsrEngine>(cfg);
     }
     if (cfg.provider == "windows-local") {
         throw std::runtime_error("asr provider 'windows-local' not implemented yet");

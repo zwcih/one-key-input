@@ -12,6 +12,11 @@ New-Item -Force -ItemType Directory $dist | Out-Null
 
 Copy-Item build\release\bin\onekey-core.exe                          $dist
 Copy-Item build\release\bin\Microsoft.CognitiveServices.Speech.*.dll $dist
+# sherpa-onnx runtime DLLs (local sherpa-paraformer ASR provider).
+Copy-Item build\release\bin\sherpa-onnx-c-api.dll                    $dist
+Copy-Item build\release\bin\sherpa-onnx-cxx-api.dll                  $dist
+Copy-Item build\release\bin\onnxruntime.dll                          $dist
+Copy-Item build\release\bin\onnxruntime_providers_shared.dll         $dist
 Copy-Item settings\src-tauri\target\release\onekey-settings.exe      $dist
 Copy-Item config.example.json                                        $dist
 

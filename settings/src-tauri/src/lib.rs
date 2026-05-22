@@ -8,6 +8,12 @@
 //                      supplied JSON; returns a list of per-component
 //                      pass/fail messages so the UI can refuse to save
 //                      bad creds before Core ever sees them
+//   - test_sherpa_model: validate a local sherpa-onnx model directory:
+//                      checks the required files exist and are readable.
+//                      Returns the elapsed time in ms (currently the
+//                      cost of the I/O check; a full model load is left
+//                      to Core to keep this command cheap and
+//                      independent of native ASR DLLs).
 //   - start_core:      spawn onekey-core.exe (for first-run flow)
 //
 // Search order for config.json + onekey-core.exe mirrors the C++ Core's
@@ -310,6 +316,12 @@ async fn test_credentials(cfg: Value) -> Result<Vec<TestResult>, String> {
         let region = cfg.pointer("/asr/provider_options/region")
             .and_then(|v| v.as_str()).unwrap_or("");
         results.push(probe_azure_speech(key, region).await);
+    } else if asr_provider == "sherpa-paraformer" {
+        // Local provider — no network probe. Just validate the model dir
+        // structure so a malformed path is caught before save_config writes.
+        let dir = cfg.pointer("/asr/provider_options/model_dir")
+            .and_then(|v| v.as_str()).unwrap_or("");
+        results.push(probe_sherpa_model_dir(dir));
     }
 
     // Polish probe.
@@ -333,6 +345,105 @@ async fn test_credentials(cfg: Value) -> Result<Vec<TestResult>, String> {
     }
 
     Ok(results)
+}
+
+/// Expand %VAR% style env references found in `s` using the current process
+/// environment. Unknown variables are left as-is — sherpa will error on use
+/// and we surface that. Mirrors the C++ side's ExpandEnv() so users see the
+/// same path resolution in Settings as Core uses at runtime.
+fn expand_env(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let bytes = s.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' {
+            if let Some(end) = bytes[i + 1..].iter().position(|&b| b == b'%') {
+                let name = &s[i + 1..i + 1 + end];
+                if let Ok(v) = std::env::var(name) {
+                    out.push_str(&v);
+                    i = i + 1 + end + 1;
+                    continue;
+                }
+            }
+        }
+        out.push(bytes[i] as char);
+        i += 1;
+    }
+    out
+}
+
+/// Resolve a config-style path: expand %VAR% references, then anchor any
+/// relative result at the exe directory so the default
+/// `models\paraformer-zh-streaming` works regardless of CWD (autostart,
+/// shortcut, Win+R). Reuses the module-level `exe_dir()` defined above.
+fn resolve_config_path(raw: &str) -> std::path::PathBuf {
+    let expanded = expand_env(raw);
+    let p = std::path::PathBuf::from(&expanded);
+    if p.is_absolute() {
+        return p;
+    }
+    match exe_dir() {
+        Some(base) => base.join(p),
+        None => p,
+    }
+}
+
+/// Verify a sherpa-onnx Paraformer model directory has the required files.
+/// Returns a TestResult so it can sit alongside the cloud probes in the
+/// Settings save flow. We do NOT actually load the model here — that costs
+/// hundreds of MB of RAM and pulls native DLLs into a Tauri process that
+/// doesn't otherwise need them. Core does the real load at startup.
+fn probe_sherpa_model_dir(raw_dir: &str) -> TestResult {
+    let comp = "Local ASR (sherpa-onnx)".to_string();
+    if raw_dir.is_empty() {
+        return TestResult {
+            component: comp,
+            ok: false,
+            message: "model_dir is empty".into(),
+        };
+    }
+    let expanded = resolve_config_path(raw_dir);
+    let dir = expanded.as_path();
+    if !dir.is_dir() {
+        return TestResult {
+            component: comp,
+            ok: false,
+            message: format!("not a directory: {}", dir.display()),
+        };
+    }
+    let has = |names: &[&str]| -> bool {
+        names.iter().any(|n| dir.join(n).is_file())
+    };
+    let mut missing = Vec::new();
+    if !has(&["encoder.onnx", "encoder.int8.onnx"]) { missing.push("encoder.onnx"); }
+    if !has(&["decoder.onnx", "decoder.int8.onnx"]) { missing.push("decoder.onnx"); }
+    if !has(&["tokens.txt"]) { missing.push("tokens.txt"); }
+    if !missing.is_empty() {
+        return TestResult {
+            component: comp,
+            ok: false,
+            message: format!("missing files in {}: {}",
+                             dir.display(), missing.join(", ")),
+        };
+    }
+    TestResult { component: comp, ok: true, message: "OK".into() }
+}
+
+/// Tauri command for the Settings "Test load" button: same I/O check as the
+/// save-time probe, but returns the elapsed millisecond count on success so
+/// the UI can show a confidence number. Errors propagate as a String the
+/// invoke() rejection handler picks up.
+#[tauri::command]
+async fn test_sherpa_model(
+    model_dir: String,
+    #[allow(unused_variables)] num_threads: Option<i64>,
+) -> Result<u64, String> {
+    let t0 = std::time::Instant::now();
+    let r = probe_sherpa_model_dir(&model_dir);
+    if !r.ok {
+        return Err(r.message);
+    }
+    Ok(t0.elapsed().as_millis() as u64)
 }
 
 #[tauri::command]
@@ -377,6 +488,7 @@ pub fn run() {
             load_config,
             save_config,
             test_credentials,
+            test_sherpa_model,
             start_core
         ])
         .run(tauri::generate_context!())
@@ -488,6 +600,111 @@ mod tests {
         assert_eq!(s["component"], json!("Azure Speech"));
         assert_eq!(s["ok"], json!(false));
         assert!(s["message"].as_str().unwrap().contains("401"));
+    }
+
+    // --- expand_env() ---
+
+    #[test]
+    fn expand_env_passes_through_strings_without_percent() {
+        assert_eq!(expand_env("C:/models/paraformer"), "C:/models/paraformer");
+        assert_eq!(expand_env(""), "");
+    }
+
+    #[test]
+    fn expand_env_substitutes_a_known_variable() {
+        let var = "ONEKEY_TEST_EXPAND_VAR";
+        std::env::set_var(var, "VALUE");
+        assert_eq!(expand_env(&format!("%{var}%/x")), "VALUE/x");
+        std::env::remove_var(var);
+    }
+
+    #[test]
+    fn expand_env_leaves_unknown_variables_untouched() {
+        let var = "ONEKEY_TEST_EXPAND_UNDEF";
+        std::env::remove_var(var);
+        let raw = format!("%{var}%/x");
+        assert_eq!(expand_env(&raw), raw);
+    }
+
+    // --- probe_sherpa_model_dir() ---
+
+    fn make_temp_dir() -> std::path::PathBuf {
+        let p = std::env::temp_dir().join(format!(
+            "onekey-rs-sherpa-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos(),
+        ));
+        std::fs::create_dir_all(&p).unwrap();
+        p
+    }
+
+    #[test]
+    fn probe_sherpa_rejects_empty_model_dir() {
+        let r = probe_sherpa_model_dir("");
+        assert!(!r.ok);
+        assert!(r.message.contains("empty"));
+    }
+
+    #[test]
+    fn probe_sherpa_rejects_nonexistent_dir() {
+        let r = probe_sherpa_model_dir("C:/__onekey_nope_dir__/x");
+        assert!(!r.ok);
+        assert!(r.message.contains("not a directory"));
+    }
+
+    #[test]
+    fn probe_sherpa_reports_missing_files() {
+        let d = make_temp_dir();
+        std::fs::write(d.join("tokens.txt"), b"x").unwrap();
+        let r = probe_sherpa_model_dir(d.to_str().unwrap());
+        assert!(!r.ok);
+        assert!(r.message.contains("encoder.onnx"));
+        assert!(r.message.contains("decoder.onnx"));
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn probe_sherpa_accepts_complete_dir() {
+        let d = make_temp_dir();
+        for f in ["encoder.onnx", "decoder.onnx", "tokens.txt"] {
+            std::fs::write(d.join(f), b"stub").unwrap();
+        }
+        let r = probe_sherpa_model_dir(d.to_str().unwrap());
+        assert!(r.ok, "expected OK, got: {}", r.message);
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn probe_sherpa_accepts_int8_named_files() {
+        let d = make_temp_dir();
+        for f in ["encoder.int8.onnx", "decoder.int8.onnx", "tokens.txt"] {
+            std::fs::write(d.join(f), b"stub").unwrap();
+        }
+        let r = probe_sherpa_model_dir(d.to_str().unwrap());
+        assert!(r.ok, "expected OK, got: {}", r.message);
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    // resolve_config_path must anchor relative paths at the exe dir, not CWD.
+    // The default model_dir ships as `models\paraformer-zh-streaming` (sibling
+    // of onekey-core.exe) and would otherwise break on autostart / shortcut
+    // launches where CWD is unrelated.
+    #[test]
+    fn resolve_config_path_anchors_relative_at_exe_dir() {
+        let base = exe_dir().expect("exe_dir resolves in tests");
+        let p = resolve_config_path("models/paraformer-zh-streaming");
+        assert!(p.is_absolute());
+        assert_eq!(p, base.join("models").join("paraformer-zh-streaming"));
+    }
+
+    #[test]
+    fn resolve_config_path_leaves_absolute_alone() {
+        let abs = if cfg!(windows) { "C:/already/abs" } else { "/already/abs" };
+        let p = resolve_config_path(abs);
+        assert_eq!(p, std::path::PathBuf::from(abs));
     }
 }
 

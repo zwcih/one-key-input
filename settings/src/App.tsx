@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { DICTS, Dict, Lang } from "./i18n/dicts";
 import { AppConfig, defaultConfig, isFirstRun, mergeWithDefaults } from "./config";
 import logoZh from "./assets/logo.png";
@@ -206,11 +207,25 @@ export default function App() {
             <select
               value={cfg.asr.provider}
               onChange={(e) =>
-                update((d) => (d.asr.provider = e.target.value))
+                update((d) => {
+                  d.asr.provider = e.target.value;
+                  // First-time switch to sherpa: pre-populate the canonical
+                  // default model directory so the user just has to download +
+                  // extract there. Issue #12 picks this path. We never
+                  // overwrite an existing value.
+                  if (
+                    e.target.value === "sherpa-paraformer" &&
+                    !d.asr.provider_options.model_dir
+                  ) {
+                    d.asr.provider_options.model_dir =
+                      "models\\paraformer-zh-streaming";
+                  }
+                })
               }
             >
-              <option value="azure-stream">azure-stream</option>
-              <option value="azure-rest">azure-rest</option>
+              <option value="azure-stream">{t.asrProviderOptionAzureStream}</option>
+              <option value="azure-rest">{t.asrProviderOptionAzureRest}</option>
+              <option value="sherpa-paraformer">{t.asrProviderOptionSherpaParaformer}</option>
             </select>
           </div>
           <div className="field">
@@ -226,26 +241,32 @@ export default function App() {
               <option value="ja-JP">ja-JP</option>
             </select>
           </div>
-          <div className="field">
-            <label>{t.asrAzureKey}</label>
-            <input
-              type="password"
-              value={(cfg.asr.provider_options.key as string) ?? ""}
-              onChange={(e) =>
-                update((d) => (d.asr.provider_options.key = e.target.value))
-              }
-            />
-          </div>
-          <div className="field">
-            <label>{t.asrAzureRegion}</label>
-            <input
-              type="text"
-              value={(cfg.asr.provider_options.region as string) ?? ""}
-              onChange={(e) =>
-                update((d) => (d.asr.provider_options.region = e.target.value))
-              }
-            />
-          </div>
+          {cfg.asr.provider === "sherpa-paraformer" ? (
+            <SherpaAsrFields cfg={cfg} update={update} t={t} />
+          ) : (
+            <>
+              <div className="field">
+                <label>{t.asrAzureKey}</label>
+                <input
+                  type="password"
+                  value={(cfg.asr.provider_options.key as string) ?? ""}
+                  onChange={(e) =>
+                    update((d) => (d.asr.provider_options.key = e.target.value))
+                  }
+                />
+              </div>
+              <div className="field">
+                <label>{t.asrAzureRegion}</label>
+                <input
+                  type="text"
+                  value={(cfg.asr.provider_options.region as string) ?? ""}
+                  onChange={(e) =>
+                    update((d) => (d.asr.provider_options.region = e.target.value))
+                  }
+                />
+              </div>
+            </>
+          )}
         </section>
 
         {/* Polish */}
@@ -501,6 +522,122 @@ export default function App() {
         onCancel={onCancel}
       />
     </div>
+  );
+}
+
+// Local-ASR provider-specific fields. Lives next to App so it can directly
+// mutate cfg via the parent's `update` callback. Test button calls into a
+// Tauri command that probes whether sherpa-onnx can actually load the model.
+function SherpaAsrFields(props: {
+  cfg: AppConfig;
+  update: (mutator: (draft: AppConfig) => void) => void;
+  t: Dict;
+}) {
+  const { cfg, update, t } = props;
+  const [testing, setTesting] = useState(false);
+  const [result, setResult] = useState<
+    | { kind: "none" }
+    | { kind: "ok"; ms: number }
+    | { kind: "err"; msg: string }
+  >({ kind: "none" });
+
+  const dir = (cfg.asr.provider_options.model_dir as string | undefined) ?? "";
+  const threads =
+    (cfg.asr.provider_options.num_threads as number | undefined) ?? 2;
+
+  const onBrowse = async () => {
+    try {
+      const chosen = await openDialog({
+        directory: true,
+        multiple: false,
+        defaultPath: dir || undefined,
+      });
+      if (typeof chosen === "string" && chosen.length > 0) {
+        update((d) => (d.asr.provider_options.model_dir = chosen));
+      }
+    } catch (e) {
+      // Dialog rejection (e.g. user cancel) is not an error worth surfacing.
+      console.warn("sherpa model_dir browse failed:", e);
+    }
+  };
+
+  const onTest = async () => {
+    if (!dir) {
+      setResult({ kind: "err", msg: t.asrSherpaModelDir });
+      return;
+    }
+    setTesting(true);
+    setResult({ kind: "none" });
+    try {
+      const ms = await invoke<number>("test_sherpa_model", {
+        modelDir: dir,
+        numThreads: threads,
+      });
+      setResult({ kind: "ok", ms });
+    } catch (e) {
+      setResult({ kind: "err", msg: String(e) });
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="field">
+        <label>{t.asrSherpaModelDir}</label>
+        <input
+          type="text"
+          value={dir}
+          onChange={(e) =>
+            update((d) => (d.asr.provider_options.model_dir = e.target.value))
+          }
+        />
+        <button className="btn" type="button" onClick={onBrowse}>
+          {t.asrSherpaBrowse}
+        </button>
+      </div>
+      <p className="group-desc">{t.asrSherpaModelDirHint}</p>
+      <div className="field">
+        <label>{t.asrSherpaThreads}</label>
+        <input
+          type="number"
+          min={1}
+          max={16}
+          value={threads}
+          onChange={(e) =>
+            update(
+              (d) => (d.asr.provider_options.num_threads = Number(e.target.value)),
+            )
+          }
+        />
+      </div>
+      <p className="group-desc">{t.asrSherpaThreadsHint}</p>
+      <div className="field">
+        <label />
+        <button
+          className="btn"
+          type="button"
+          onClick={onTest}
+          disabled={testing}
+        >
+          {testing ? t.asrSherpaTesting : t.asrSherpaTest}
+        </button>
+        {result.kind === "ok" && (
+          <span className="status ok">
+            {t.asrSherpaTestOk}
+            {result.ms}
+            {"ms"}
+          </span>
+        )}
+        {result.kind === "err" && (
+          <span className="status error">
+            {t.asrSherpaTestFail}
+            {result.msg}
+          </span>
+        )}
+      </div>
+      <p className="group-desc">{t.asrSherpaSetupHelp}</p>
+    </>
   );
 }
 
