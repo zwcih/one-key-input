@@ -196,6 +196,81 @@ export default function App() {
               }
             />
           </div>
+          <div className="field">
+            <label>
+              {t.hotkeyBehavior}
+              <span className="hint">{t.hotkeyBehaviorHint}</span>
+            </label>
+            <div className="radio-row">
+              {(
+                [
+                  ["smart", t.hotkeyBehaviorSmart],
+                  ["push_to_talk", t.hotkeyBehaviorPushToTalk],
+                  ["toggle", t.hotkeyBehaviorToggle],
+                ] as const
+              ).map(([val, label]) => (
+                <label key={val}>
+                  <input
+                    type="radio"
+                    name="hk-behavior"
+                    checked={(cfg.hotkey.behavior ?? "push_to_talk") === val}
+                    onChange={() =>
+                      update((d) => {
+                        d.hotkey.behavior = val;
+                      })
+                    }
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </div>
+          {(cfg.hotkey.behavior ?? "push_to_talk") === "smart" && (
+            <div className="field">
+              <label htmlFor="hk-smart-threshold">
+                {t.hotkeySmartThresholdMs}
+                <span className="hint">{t.hotkeySmartThresholdHint}</span>
+              </label>
+              <input
+                id="hk-smart-threshold"
+                type="number"
+                min={50}
+                max={2000}
+                value={cfg.hotkey.smart_threshold_ms ?? 400}
+                onChange={(e) =>
+                  update(
+                    (d) =>
+                      (d.hotkey.smart_threshold_ms = Number(e.target.value)),
+                  )
+                }
+              />
+            </div>
+          )}
+          {((cfg.hotkey.behavior ?? "push_to_talk") === "smart" ||
+            (cfg.hotkey.behavior ?? "push_to_talk") === "toggle") && (
+            <div className="field">
+              <label htmlFor="hk-max-duration">
+                {t.hotkeyMaxDurationMin}
+                <span className="hint">{t.hotkeyMaxDurationHint}</span>
+              </label>
+              <input
+                id="hk-max-duration"
+                type="number"
+                min={0.5}
+                max={30}
+                step={0.5}
+                value={(cfg.hotkey.max_duration_ms ?? 300000) / 60000}
+                onChange={(e) =>
+                  update(
+                    (d) =>
+                      (d.hotkey.max_duration_ms = Math.round(
+                        Number(e.target.value) * 60000,
+                      )),
+                  )
+                }
+              />
+            </div>
+          )}
         </section>
 
         {/* ASR */}

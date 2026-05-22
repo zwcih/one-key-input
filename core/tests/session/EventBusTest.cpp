@@ -91,11 +91,12 @@ TEST(EventBus, ConcurrentPublishIsSafe) {
 }
 
 TEST(PhaseName, AllPhasesNamed) {
-    EXPECT_STREQ(PhaseName(Phase::Idle),        "Idle");
-    EXPECT_STREQ(PhaseName(Phase::Recording),   "Recording");
-    EXPECT_STREQ(PhaseName(Phase::Recognizing), "Recognizing");
-    EXPECT_STREQ(PhaseName(Phase::Polishing),   "Polishing");
-    EXPECT_STREQ(PhaseName(Phase::Injecting),   "Injecting");
-    EXPECT_STREQ(PhaseName(Phase::Done),        "Done");
-    EXPECT_STREQ(PhaseName(Phase::Error),       "Error");
+    EXPECT_STREQ(PhaseName(Phase::Idle),             "Idle");
+    EXPECT_STREQ(PhaseName(Phase::Recording),        "Recording");
+    EXPECT_STREQ(PhaseName(Phase::StickyRecording),  "StickyRecording");
+    EXPECT_STREQ(PhaseName(Phase::Recognizing),      "Recognizing");
+    EXPECT_STREQ(PhaseName(Phase::Polishing),        "Polishing");
+    EXPECT_STREQ(PhaseName(Phase::Injecting),        "Injecting");
+    EXPECT_STREQ(PhaseName(Phase::Done),             "Done");
+    EXPECT_STREQ(PhaseName(Phase::Error),            "Error");
 }

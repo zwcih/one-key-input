@@ -141,6 +141,14 @@ void HotkeyManager::OnHookEvent(unsigned long wParam, const void* kbll) {
            on_press,           on_release,           "primary");
     handle(vk2_, min_hold_ms2_, pressed2_, press_tick2_,
            on_press_secondary, on_release_secondary, "secondary");
+
+    // Esc: fire on key-down so a sticky/toggle recording stops as soon as
+    // the user starts pressing Esc rather than after release. We do not
+    // mark the event handled — the LowLevelHook returns CallNextHookEx so
+    // other apps still see Esc normally.
+    if (is_down && kb->vkCode == VK_ESCAPE && on_escape) {
+        on_escape();
+    }
 }
 
 }  // namespace onekey::hotkey

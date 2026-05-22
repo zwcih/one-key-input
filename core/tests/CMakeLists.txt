@@ -6,6 +6,7 @@ set(ONEKEY_CORE_TEST_SOURCES
     util/WinHelpersTest.cpp
     config/ConfigTest.cpp
     session/EventBusTest.cpp
+    session/HotkeyBehaviorMachineTest.cpp
     asr/AsrFactoryTest.cpp
     asr/SherpaAsrEngineTest.cpp
     polish/PolisherFactoryTest.cpp

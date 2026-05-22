@@ -19,6 +19,12 @@ describe("defaultConfig", () => {
     expect(c.inject.mode).toBe("sendinput");
     expect(c.hotkey.key).toBe("f9");
     expect(c.hotkey.min_hold_ms).toBe(250);
+    // New installs default to smart so users get the recommended behavior
+    // out of the box. Upgrades (no `behavior` field on disk) are
+    // backfilled to push_to_talk by mergeWithDefaults — see below.
+    expect(c.hotkey.behavior).toBe("smart");
+    expect(c.hotkey.smart_threshold_ms).toBe(400);
+    expect(c.hotkey.max_duration_ms).toBe(300000);
     expect(c.sound.enabled).toBe(true);
     expect(c.autostart.enabled).toBe(true);
     expect(c.translate?.enabled).toBe(true);
@@ -182,6 +188,48 @@ describe("mergeWithDefaults", () => {
     expect(merged.autostart).toEqual({ enabled: true });
     expect(merged.sound).toEqual({ enabled: true });
     expect(merged.translate).toBeDefined();
+  });
+
+  it("backfills hotkey.behavior to push_to_talk for v0.1 hotkey blocks", () => {
+    // Existing users had `{key, min_hold_ms}` only. The new behavior /
+    // threshold / max_duration fields default to push_to_talk so a
+    // running deployment sees zero behavior change after upgrade.
+    const v01: AppConfig = {
+      asr: defaultConfig().asr,
+      polish: defaultConfig().polish,
+      inject: defaultConfig().inject,
+      hotkey: { key: "f9", min_hold_ms: 250 },
+      sound: defaultConfig().sound,
+      autostart: defaultConfig().autostart,
+    };
+    const merged = mergeWithDefaults(v01);
+    expect(merged.hotkey.behavior).toBe("push_to_talk");
+    expect(merged.hotkey.smart_threshold_ms).toBe(400);
+    expect(merged.hotkey.max_duration_ms).toBe(300000);
+    // User-set fields untouched.
+    expect(merged.hotkey.key).toBe("f9");
+    expect(merged.hotkey.min_hold_ms).toBe(250);
+  });
+
+  it("does not overwrite an explicit hotkey.behavior value", () => {
+    const v02: AppConfig = {
+      asr: defaultConfig().asr,
+      polish: defaultConfig().polish,
+      inject: defaultConfig().inject,
+      hotkey: {
+        key: "f9",
+        min_hold_ms: 250,
+        behavior: "toggle",
+        smart_threshold_ms: 250,
+        max_duration_ms: 60000,
+      },
+      sound: defaultConfig().sound,
+      autostart: defaultConfig().autostart,
+    };
+    const merged = mergeWithDefaults(v02);
+    expect(merged.hotkey.behavior).toBe("toggle");
+    expect(merged.hotkey.smart_threshold_ms).toBe(250);
+    expect(merged.hotkey.max_duration_ms).toBe(60000);
   });
 
   it("returns a new object and does not mutate the input", () => {

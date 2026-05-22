@@ -59,6 +59,7 @@ private:
 
     HWND   hwnd_     = nullptr;
     HICON  hicon_    = nullptr;
+    bool   hicon_owned_ = false;  // true when hicon_ came from CreateMicIcon (must DestroyIcon)
     UINT   wm_taskbar_created_ = 0; // for explorer crash recovery
     bool   added_    = false;
     std::wstring     tooltip_;

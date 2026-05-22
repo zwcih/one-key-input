@@ -5,6 +5,7 @@
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <thread>
 #include <unordered_set>
 
@@ -37,14 +38,26 @@ DictationSession::DictationSession(const config::AppConfig& cfg,
                                    audio::WasapiCapture* capture,
                                    EventBus* bus)
     : cfg_(cfg), asr_(asr), polisher_(polisher),
-      injector_(injector), capture_(capture), bus_(bus) {
+      injector_(injector), capture_(capture), bus_(bus),
+      behavior_machine_(ParseBehavior(cfg.hotkey.behavior),
+                        cfg.hotkey.smart_threshold_ms,
+                        cfg.hotkey.max_duration_ms) {
     asr_->on_event = [this](const asr::AsrEvent& ev){
         switch (ev.kind) {
             case asr::AsrEventKind::Partial:
-                // For partials: log + push to overlay via the Recording phase
-                // with the partial text in detail. Polishing is NOT triggered.
+                // For partials: log + push to overlay via the current
+                // recording phase with the partial text in detail. We
+                // mirror whichever recording sub-state we're in (regular
+                // Recording vs. StickyRecording) so the tray icon doesn't
+                // flap back to red while in sticky mode.
                 spdlog::debug("[session] asr.partial: {}", util::WideToUtf8(ev.text));
-                if (bus_ && !ev.text.empty()) bus_->Publish({Phase::Recording, ev.text});
+                if (bus_ && !ev.text.empty()) {
+                    Phase cur = phase_.load();
+                    Phase echo = (cur == Phase::StickyRecording)
+                                   ? Phase::StickyRecording
+                                   : Phase::Recording;
+                    bus_->Publish({echo, ev.text});
+                }
                 break;
             case asr::AsrEventKind::SegmentFinal:
                 // Per design discussion: even with a streaming engine we
@@ -68,6 +81,58 @@ DictationSession::DictationSession(const config::AppConfig& cfg,
 void DictationSession::SetPhase(Phase p, std::wstring detail) {
     phase_.store(p);
     if (bus_) bus_->Publish({p, std::move(detail)});
+}
+
+DictationSession::~DictationSession() {
+    StopWatchdog();
+}
+
+void DictationSession::OnHotkeyPress(Mode mode) {
+    std::lock_guard<std::mutex> lk(machine_mu_);
+    auto act = behavior_machine_.OnKeyDown(std::chrono::steady_clock::now());
+    switch (act) {
+        case HotkeyAction::StartRecording:
+            StartRecording(mode);
+            break;
+        case HotkeyAction::StopAndProcess:
+            // Second tap in toggle / smart-sticky.
+            StopAndProcess();
+            break;
+        case HotkeyAction::PromoteToSticky:
+        case HotkeyAction::None:
+            break;
+    }
+}
+
+void DictationSession::OnHotkeyRelease() {
+    std::lock_guard<std::mutex> lk(machine_mu_);
+    auto act = behavior_machine_.OnKeyUp(std::chrono::steady_clock::now());
+    switch (act) {
+        case HotkeyAction::StopAndProcess:
+            StopAndProcess();
+            break;
+        case HotkeyAction::PromoteToSticky:
+            // Mic stays open; flip the phase so the tray reflects the
+            // hands-free state. The watchdog (started in StartRecording) is
+            // already running and will enforce max_duration_ms.
+            if (phase_.load() == Phase::Recording) {
+                SetPhase(Phase::StickyRecording);
+                spdlog::info("[session] promoted to sticky (hands-free) recording");
+            }
+            break;
+        case HotkeyAction::StartRecording:
+        case HotkeyAction::None:
+            break;
+    }
+}
+
+void DictationSession::OnEscape() {
+    std::lock_guard<std::mutex> lk(machine_mu_);
+    auto act = behavior_machine_.OnEscape();
+    if (act == HotkeyAction::StopAndProcess) {
+        spdlog::info("[session] Esc -> force stop");
+        StopAndProcess();
+    }
 }
 
 void DictationSession::StartRecording(Mode mode) {
@@ -108,15 +173,24 @@ void DictationSession::StartRecording(Mode mode) {
         SetPhase(Phase::Error, L"mic open failed");
         asr_->Stop();
         SetPhase(Phase::Idle);
+        return;
     }
+
+    // Start the max-duration watchdog. Push-to-talk users never hit it
+    // (the OS will deliver KeyUp first), but for toggle/smart it's the
+    // safety net that prevents a forgotten mic from running forever.
+    StartWatchdog();
 }
 
 void DictationSession::StopAndProcess() {
     Phase cur = phase_.load();
-    if (cur != Phase::Recording) {
+    if (cur != Phase::Recording && cur != Phase::StickyRecording) {
         spdlog::debug("[session] StopAndProcess ignored (phase={})", PhaseName(cur));
         return;
     }
+    // Tear down the watchdog before we start the long-running pipeline so
+    // it can't fire StopAndProcess again mid-recognize.
+    StopWatchdog();
     t_release_ = std::chrono::steady_clock::now();
     auto rec_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                      t_release_ - t_press_).count();
@@ -126,6 +200,57 @@ void DictationSession::StopAndProcess() {
     SetPhase(Phase::Recognizing);
 
     std::thread([this]{ this->DoRecognizeAndPolish(); }).detach();
+}
+
+void DictationSession::StartWatchdog() {
+    StopWatchdog();  // be safe
+    if (cfg_.hotkey.max_duration_ms <= 0) return;
+    {
+        std::lock_guard<std::mutex> lk(watchdog_mu_);
+        watchdog_stop_ = false;
+    }
+    watchdog_ = std::thread([this]{
+        std::unique_lock<std::mutex> lk(watchdog_mu_);
+        auto deadline = std::chrono::steady_clock::now()
+                      + std::chrono::milliseconds(cfg_.hotkey.max_duration_ms);
+        // Loop on both the stop flag *and* the deadline so spurious
+        // wakeups don't accidentally bail early, and so we re-evaluate
+        // remaining time after each wakeup (otherwise the wait could
+        // tick beyond the deadline by up to a full poll interval).
+        while (!watchdog_stop_) {
+            auto now = std::chrono::steady_clock::now();
+            if (now >= deadline) break;
+            auto remaining = std::min(
+                std::chrono::milliseconds(500),
+                std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now));
+            watchdog_cv_.wait_for(lk, remaining);
+        }
+        if (watchdog_stop_) return;
+        lk.unlock();
+        spdlog::warn("[session] max_duration_ms ({}) hit — force stop",
+                     cfg_.hotkey.max_duration_ms);
+        // Drive through the same OnEscape path so the behavior machine's
+        // internal state stays consistent (no half-states).
+        OnEscape();
+    });
+}
+
+void DictationSession::StopWatchdog() {
+    {
+        std::lock_guard<std::mutex> lk(watchdog_mu_);
+        watchdog_stop_ = true;
+    }
+    watchdog_cv_.notify_all();
+    // If the watchdog itself is calling this (via OnEscape→StopAndProcess),
+    // joining would deadlock. In that case detach — the thread is about to
+    // exit naturally after its callback returns anyway.
+    if (watchdog_.joinable()) {
+        if (watchdog_.get_id() == std::this_thread::get_id()) {
+            watchdog_.detach();
+        } else {
+            watchdog_.join();
+        }
+    }
 }
 
 void DictationSession::DoRecognizeAndPolish() {

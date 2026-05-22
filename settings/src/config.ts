@@ -31,7 +31,19 @@ export interface AppConfig {
     };
   };
   inject: { mode: "sendinput" | "clipboard" | "auto" | string };
-  hotkey: { key: string; min_hold_ms?: number };
+  hotkey: {
+    key: string;
+    min_hold_ms?: number;
+    // Recording behavior. Mirrors C++ HotkeyConfig::behavior.
+    //   push_to_talk: hold to record (legacy default for upgrades)
+    //   toggle      : tap once to start, tap again to stop
+    //   smart       : short tap = toggle, long press = push-to-talk
+    behavior?: "push_to_talk" | "toggle" | "smart" | string;
+    // Smart mode short/long press boundary in milliseconds. < threshold = toggle.
+    smart_threshold_ms?: number;
+    // Safety stop for toggle / smart-sticky in milliseconds. 0 disables.
+    max_duration_ms?: number;
+  };
   sound: { enabled: boolean };
   autostart: { enabled: boolean };
   // Translation mode (F8 by default). Reuses the polish pipeline but swaps
@@ -68,7 +80,17 @@ export function defaultConfig(): AppConfig {
       },
     },
     inject: { mode: "sendinput" },
-    hotkey: { key: "f9", min_hold_ms: 250 },
+    hotkey: {
+      key: "f9",
+      min_hold_ms: 250,
+      // Fresh installs default to smart (short tap toggles, long press =
+      // push-to-talk). Existing on-disk configs without this field are
+      // backfilled with "push_to_talk" by mergeWithDefaults() so upgrades
+      // see no behavior regression.
+      behavior: "smart",
+      smart_threshold_ms: 400,
+      max_duration_ms: 300000,
+    },
     sound: { enabled: true },
     autostart: { enabled: true },
     translate: {
@@ -118,7 +140,21 @@ export function mergeWithDefaults(c: AppConfig): AppConfig {
   if (out.asr === undefined) out.asr = d.asr;
   if (out.polish === undefined) out.polish = d.polish;
   if (out.inject === undefined) out.inject = d.inject;
-  if (out.hotkey === undefined) out.hotkey = d.hotkey;
+  if (out.hotkey === undefined) {
+    out.hotkey = d.hotkey;
+  } else {
+    // Per-field backfill for hotkey: a v0.1 config has `key` and
+    // `min_hold_ms` but no behavior/threshold/max_duration. Default the
+    // missing fields to *push_to_talk* — explicit zero-regression for
+    // upgraders, even though new installs (defaultConfig) start on smart.
+    if (out.hotkey.behavior === undefined) out.hotkey.behavior = "push_to_talk";
+    if (out.hotkey.smart_threshold_ms === undefined) {
+      out.hotkey.smart_threshold_ms = d.hotkey.smart_threshold_ms;
+    }
+    if (out.hotkey.max_duration_ms === undefined) {
+      out.hotkey.max_duration_ms = d.hotkey.max_duration_ms;
+    }
+  }
   if (out.sound === undefined) out.sound = d.sound;
   if (out.autostart === undefined) out.autostart = d.autostart;
   if (out.translate === undefined) out.translate = d.translate;

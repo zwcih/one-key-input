@@ -30,13 +30,14 @@ void EventBus::Publish(const PhaseEvent& ev) {
 
 const char* PhaseName(Phase p) {
     switch (p) {
-        case Phase::Idle:        return "Idle";
-        case Phase::Recording:   return "Recording";
-        case Phase::Recognizing: return "Recognizing";
-        case Phase::Polishing:   return "Polishing";
-        case Phase::Injecting:   return "Injecting";
-        case Phase::Done:        return "Done";
-        case Phase::Error:       return "Error";
+        case Phase::Idle:            return "Idle";
+        case Phase::Recording:       return "Recording";
+        case Phase::StickyRecording: return "StickyRecording";
+        case Phase::Recognizing:     return "Recognizing";
+        case Phase::Polishing:       return "Polishing";
+        case Phase::Injecting:       return "Injecting";
+        case Phase::Done:            return "Done";
+        case Phase::Error:           return "Error";
     }
     return "?";
 }
