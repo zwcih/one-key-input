@@ -158,7 +158,13 @@ void TrayIcon::Redraw() {
     int small_h = ::GetSystemMetrics(SM_CYSMICON);
     int sz = std::max({16, small_w, small_h});
     HICON next = CreateMicIcon(phase_, paused_, sz);
-    if (!next) return;  // keep the old icon rather than show a blank entry
+    if (!next) {
+        // Keep the old icon rather than show a blank tray entry, but log
+        // so the failure isn't silent if the user reports a stuck color.
+        spdlog::warn("[tray] CreateMicIcon returned null for phase={} paused={} sz={}",
+                     session::PhaseName(phase_), paused_, sz);
+        return;
+    }
 
     NOTIFYICONDATAW nid{};
     nid.cbSize = sizeof(nid);

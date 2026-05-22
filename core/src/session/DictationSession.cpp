@@ -5,6 +5,7 @@
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <thread>
 #include <unordered_set>
 
@@ -210,12 +211,19 @@ void DictationSession::StartWatchdog() {
     }
     watchdog_ = std::thread([this]{
         std::unique_lock<std::mutex> lk(watchdog_mu_);
-        // Wake at most every 500ms so Esc / KeyUp still feels instant if
-        // they fire StopAndProcess (which signals us to exit).
         auto deadline = std::chrono::steady_clock::now()
                       + std::chrono::milliseconds(cfg_.hotkey.max_duration_ms);
-        while (!watchdog_stop_ && std::chrono::steady_clock::now() < deadline) {
-            watchdog_cv_.wait_for(lk, std::chrono::milliseconds(500));
+        // Loop on both the stop flag *and* the deadline so spurious
+        // wakeups don't accidentally bail early, and so we re-evaluate
+        // remaining time after each wakeup (otherwise the wait could
+        // tick beyond the deadline by up to a full poll interval).
+        while (!watchdog_stop_) {
+            auto now = std::chrono::steady_clock::now();
+            if (now >= deadline) break;
+            auto remaining = std::min(
+                std::chrono::milliseconds(500),
+                std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now));
+            watchdog_cv_.wait_for(lk, remaining);
         }
         if (watchdog_stop_) return;
         lk.unlock();

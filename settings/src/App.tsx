@@ -259,8 +259,7 @@ export default function App() {
                 min={0.5}
                 max={30}
                 step={0.5}
-                value={((cfg.hotkey.max_duration_ms ?? 300000) / 60000)
-                  .toString()}
+                value={(cfg.hotkey.max_duration_ms ?? 300000) / 60000}
                 onChange={(e) =>
                   update(
                     (d) =>
