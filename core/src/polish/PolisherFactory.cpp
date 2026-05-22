@@ -12,7 +12,11 @@ std::unique_ptr<IPolisher> CreatePolisher(const config::PolishConfig& cfg) {
         return std::make_unique<OpenAIPolisher>(cfg);
     }
     if (cfg.provider == "llamacpp") {
-        throw std::runtime_error("polish provider 'llamacpp' not implemented yet (Slice 3)");
+        // Privacy-mode roadmap: llama.cpp + Qwen2.5-3B-Instruct (Q4_K_M).
+        // See docs/privacy-mode.md for the model selection and rollout plan.
+        throw std::runtime_error(
+            "polish provider 'llamacpp' not implemented yet "
+            "(privacy-mode roadmap; see docs/privacy-mode.md)");
     }
     throw std::runtime_error("unknown polish provider: " + cfg.provider);
 }

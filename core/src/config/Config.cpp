@@ -104,6 +104,21 @@ AppConfig Parse(const std::string& body) {
         GetOpt(t, "target_language", c.translate.target_language);
         GetOpt(t, "smart_target",    c.translate.smart_target);
     }
+    if (j.contains("privacy") && j["privacy"].is_object()) {
+        const auto& pv = j["privacy"];
+        GetOpt(pv, "mode", c.privacy.mode);
+    }
+    // Validate privacy.mode; only the three documented values are accepted
+    // so typos like "offline" or "private" fail fast at load time instead
+    // of silently degrading behavior.
+    if (c.privacy.mode != "cloud" &&
+        c.privacy.mode != "local" &&
+        c.privacy.mode != "hybrid") {
+        throw std::runtime_error(
+            "invalid privacy.mode '" + c.privacy.mode +
+            "' (expected one of: cloud, local, hybrid). "
+            "See docs/privacy-mode.md.");
+    }
 
     return c;
 }

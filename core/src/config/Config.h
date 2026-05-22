@@ -10,7 +10,7 @@ namespace onekey::config {
 // JSON object that each engine implementation parses itself. The session
 // layer never reads provider_options.
 struct AsrConfig {
-    std::string    provider = "azure-rest";  // azure-rest | azure-stream | windows-local | whisper-local | ...
+    std::string    provider = "azure-rest";  // azure-rest | azure-stream | sherpa-onnx | windows-local | whisper-local | ...
     std::string    language = "zh-CN";
     bool           punctuation = true;
     nlohmann::json provider_options = nlohmann::json::object();
@@ -56,7 +56,24 @@ struct TranslateConfig {
     bool        smart_target    = false;
 };
 
+// Top-level privacy posture. "Cloud / local / hybrid" toggle from the
+// privacy-mode roadmap (see docs/privacy-mode.md). The session layer
+// can consult this to pick a default ASR + polish provider pair, and
+// the UI surfaces it as a single switch.
+//
+//   cloud   — both ASR and polish use cloud providers (current default)
+//   local   — both ASR and polish run on-device, zero outbound traffic
+//   hybrid  — mix-and-match; provider fields below decide which side is local
+//
+// The local engines (sherpa-onnx ASR + llama.cpp polish) are still being
+// wired up; selecting "local" today will surface a "not implemented yet"
+// error from the factory until those land.
+struct PrivacyConfig {
+    std::string mode = "cloud";  // cloud | local | hybrid
+};
+
 struct AppConfig {
+    PrivacyConfig   privacy;
     AsrConfig       asr;
     PolishConfig    polish;
     InjectConfig    inject;

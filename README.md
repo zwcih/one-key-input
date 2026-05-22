@@ -127,10 +127,12 @@ One-Key Input 想做到的是：
 |---|---|---|
 | ASR (流式) | Azure Speech | ✅ 默认 |
 | ASR (REST) | Azure Speech | ✅ |
-| ASR (本地) | Whisper.cpp | 🚧 接口已留 |
+| ASR (本地) | sherpa-onnx + Paraformer-zh | 🚧 接口已留（[隐私模式路线图](docs/privacy-mode.md)） |
 | 润色 | Azure OpenAI | ✅ 默认 |
 | 润色 | OpenAI | ✅ |
-| 润色 | 本地 LLM | 🚧 接口已留 |
+| 润色 | 本地 LLM (llama.cpp + Qwen2.5) | 🚧 接口已留（[隐私模式路线图](docs/privacy-mode.md)） |
+
+> **隐私模式（云端 / 本地 / 混合）** —— `config.json` 顶层加一个 `"privacy": { "mode": "cloud" }`，可选 `cloud` / `local` / `hybrid`。默认 `cloud`，行为不变。完整设计、模型选型、NPU 适配路线图见 [docs/privacy-mode.md](docs/privacy-mode.md)。
 
 ## 你需要准备的
 

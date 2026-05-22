@@ -127,10 +127,12 @@ Or edit it from the Settings UI's "Translation Mode" section.
 |---|---|---|
 | ASR (streaming) | Azure Speech | ✅ default |
 | ASR (REST) | Azure Speech | ✅ |
-| ASR (local) | Whisper.cpp | 🚧 interface ready |
+| ASR (local) | sherpa-onnx + Paraformer-zh | 🚧 interface ready ([privacy-mode roadmap](docs/privacy-mode.md)) |
 | Polish | Azure OpenAI | ✅ default |
 | Polish | OpenAI | ✅ |
-| Polish | local LLM | 🚧 interface ready |
+| Polish | local LLM (llama.cpp + Qwen2.5) | 🚧 interface ready ([privacy-mode roadmap](docs/privacy-mode.md)) |
+
+> **Privacy mode (cloud / local / hybrid)** — set the top-level `"privacy": { "mode": "cloud" }` field in `config.json` to one of `cloud` / `local` / `hybrid`. Defaults to `cloud` (no behavior change). Full design, model selection rationale, and the NPU rollout plan live in [docs/privacy-mode.md](docs/privacy-mode.md).
 
 ## What you need
 

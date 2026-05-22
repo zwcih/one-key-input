@@ -1,7 +1,12 @@
 {
   "_comment": "Template config — copy to config.json (gitignored) and fill in your keys.",
+  "privacy": {
+    "_comment": "Top-level cloud/local/hybrid toggle. See docs/privacy-mode.md. Local engines are still being wired up; 'local' / 'hybrid' will error until then.",
+    "_mode_choices": ["cloud", "local", "hybrid"],
+    "mode": "cloud"
+  },
   "asr": {
-    "_provider_choices": ["azure-rest", "azure-stream"],
+    "_provider_choices": ["azure-rest", "azure-stream", "sherpa-onnx"],
     "provider": "azure-stream",
     "language": "zh-CN",
     "provider_options": {

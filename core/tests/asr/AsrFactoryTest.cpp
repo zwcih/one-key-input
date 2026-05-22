@@ -36,6 +36,15 @@ TEST(AsrFactory, WhisperLocalNotImplemented) {
     EXPECT_THROW({ (void)CreateAsrEngine(cfg); }, std::runtime_error);
 }
 
+TEST(AsrFactory, SherpaOnnxNotImplemented) {
+    // Privacy-mode roadmap: sherpa-onnx is a recognized provider name
+    // but the engine is not wired up yet. Selecting it must surface a
+    // clear "not implemented yet" error instead of "unknown provider".
+    AsrConfig cfg;
+    cfg.provider = "sherpa-onnx";
+    EXPECT_THROW({ (void)CreateAsrEngine(cfg); }, std::runtime_error);
+}
+
 TEST(AsrFactory, UnknownProviderThrows) {
     AsrConfig cfg;
     cfg.provider = "wat-no-such";

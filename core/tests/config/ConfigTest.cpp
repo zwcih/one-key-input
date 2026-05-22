@@ -285,3 +285,26 @@ TEST(Config, LoadTranslatePartialKeepsDefaults) {
     EXPECT_TRUE(c.translate.enabled);
     EXPECT_FALSE(c.translate.smart_target);
 }
+
+TEST(Config, PrivacyDefaultIsCloud) {
+    auto p = WriteTempConfig("{}", "privacy-default");
+    AppConfig c = Load(p);
+    EXPECT_EQ(c.privacy.mode, "cloud");
+}
+
+TEST(Config, PrivacyExplicitLocalAndHybridAccepted) {
+    for (const auto& mode : {std::string("local"), std::string("hybrid")}) {
+        json j = { {"privacy", {{"mode", mode}}} };
+        auto p = WriteTempConfig(j.dump(), ("privacy-" + mode).c_str());
+        AppConfig c = Load(p);
+        EXPECT_EQ(c.privacy.mode, mode);
+    }
+}
+
+TEST(Config, PrivacyInvalidModeThrows) {
+    // Typos like "offline" / "private" must fail fast at load time
+    // rather than silently degrading behavior.
+    json j = { {"privacy", {{"mode", "offline"}}} };
+    auto p = WriteTempConfig(j.dump(), "privacy-invalid");
+    EXPECT_THROW({ (void)Load(p); }, std::runtime_error);
+}
