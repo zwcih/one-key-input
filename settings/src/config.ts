@@ -16,7 +16,6 @@ export interface AppConfig {
   polish: {
     provider: string;
     mode: "raw" | "tidy" | "formal" | string;
-    temperature?: number;
     max_tokens?: number;
     use_context?: boolean;
     provider_options: {
@@ -55,7 +54,6 @@ export function defaultConfig(): AppConfig {
     polish: {
       provider: "openai-azure",
       mode: "tidy",
-      temperature: 0.2,
       max_tokens: 2000,
       use_context: true,
       provider_options: {

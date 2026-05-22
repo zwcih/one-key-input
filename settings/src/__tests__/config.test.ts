@@ -14,7 +14,6 @@ describe("defaultConfig", () => {
     expect(c.asr.punctuation).toBe(true);
     expect(c.polish.provider).toBe("openai-azure");
     expect(c.polish.mode).toBe("tidy");
-    expect(c.polish.temperature).toBe(0.2);
     expect(c.polish.max_tokens).toBe(2000);
     expect(c.polish.use_context).toBe(true);
     expect(c.inject.mode).toBe("sendinput");

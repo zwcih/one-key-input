@@ -26,7 +26,6 @@ public:
 private:
     std::string provider_;     // "openai-azure" | "openai" | "ollama"
     std::string mode_;
-    double      temperature_;
     int         max_tokens_;
     std::string endpoint_;
     std::string key_;

@@ -333,19 +333,6 @@ export default function App() {
             />
           </div>
           <div className="field">
-            <label>{t.polishTemperature}</label>
-            <input
-              type="number"
-              step="0.05"
-              min={0}
-              max={2}
-              value={cfg.polish.temperature ?? 0.2}
-              onChange={(e) =>
-                update((d) => (d.polish.temperature = Number(e.target.value)))
-              }
-            />
-          </div>
-          <div className="field">
             <label>{t.polishUseContext}</label>
             <input
               type="checkbox"
